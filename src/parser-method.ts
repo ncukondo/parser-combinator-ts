@@ -30,6 +30,7 @@ declare module './parser' {
     node:(nodeName:string)=>Parser<Mark<T>>;
     notFollowedBy:<U>(notParser:ParserLike<U>) => Parser<T>;
     followedBy:<U>(followParser:ParserLike<U>) => Parser<T>;
+    label:<U extends string>(name:U) => readonly [U,Parser<T>];
   }
 }
 const _ = Parser.prototype;
@@ -244,6 +245,9 @@ _.followedBy = function<T,U>(this:Parser<T>,followParserLike:ParserLike<U>){
   });
 }
 
+_.label = function<T,U extends string>(this:Parser<T>,name:U):readonly [U,Parser<T>]{
+  return [name,this] as const;
+}
 
 
 
