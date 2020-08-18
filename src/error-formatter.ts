@@ -1,13 +1,10 @@
-interface FormatOption  {
-  linesBeforeError:number;
-  linesAfterError:number;
-  linePrefix:string;
-}
-const formatOptionDefault:FormatOption = {
+
+const formatOptionDefault = {
   linesBeforeError: 2,
   linesAfterError:3,
   linePrefix:"  "
 }
+type FormatOption =Partial<typeof formatOptionDefault>
 
 const offsetToPosition = (input:string, offset:number) =>{
   const lines = input.slice(0, offset).split("\n");
@@ -27,9 +24,9 @@ const repeat = (text:string, amount:number) => {
 
 const formatExpected = (expected:string[]) =>{
   if (expected.length === 1) {
-    return "Expected:\n\n" + expected[0];
+    return "Expected:\n" + expected[0];
   }
-  return "Expected one of the following: \n\n" + expected.join(", ");
+  return "Expected one of the following: \n" + expected.join(", ");
 }
 
 // Get a range of indexes including `i`-th element and `before` and `after` amount of elements from `arr`.
@@ -46,13 +43,15 @@ const makePadder = (len:number,padChar=' ') => (target:string) =>
 const range = (start:number,end:number) => 
   [...Array(end-start)].map((_,i)=>i+start);
 const insert = <T>(target:T[],index:number,item:T) =>
-  [...target].splice(index,0,item);
+  [...target.slice(0,index),item,...target.slice(index)];
 
-const formatGot = (input:string, index:number,option?:Partial<FormatOption>) => {
-  if (index === input.length) return "Got the end of the input";
-  const opt = option ? {...formatOptionDefault,...option}: formatOptionDefault
+
+const formatGot = (input:string, index:number,option?:FormatOption) => {
+  if (index >= input.length) return "Got the end of the input";
+  console.log(index);
+  const opt = {...formatOptionDefault,...option};
   const position = offsetToPosition(input, index);
-  const errorLine = position.line-1;
+  const errorLine = position.line;
   const lines = input.split(/\r\n|[\n\r]/);
   const [start,end] = rangeFromIndexAndOffsets(
     errorLine,
@@ -67,9 +66,9 @@ const formatGot = (input:string, index:number,option?:Partial<FormatOption>) => 
     return prefix+padLeft(String(i+1))+lineSep+line;
   }
   const errorIndicatorLine = () =>{
-    return opt.linePrefix
+    return opt.linePrefix+" "
       + lineSep
-      + repeat(" ",position.column)
+      + repeat(" ",position.column-1)
       + "^"
   }
   const output = range(start,end).map(i=>printLine(i,lines[i]));
@@ -82,12 +81,10 @@ const formatGot = (input:string, index:number,option?:Partial<FormatOption>) => 
 
 const formatError = (input:string, index:number,expected:string[],option?:Partial<FormatOption>) => {
   return `
--- PARSING FAILED ${repeat("-", 50)}
-    
-    
+  ${repeat("-", 10)} PARSING FAILED ${repeat("-", 10)}
+
 ${formatGot(input, index,option)}
-     
- 
+
 ${formatExpected(expected)}
 `;
 }

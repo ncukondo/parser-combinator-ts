@@ -1,6 +1,3 @@
-import {formatError} from './error-formatter'
-
-
 export interface OkResult<T> {
   status: true;
   index: number
@@ -10,9 +7,8 @@ export interface OkResult<T> {
 export interface FailResult {
   status: false;
   furthest: number;
-  expect: string[]
+  expect: string[];
 }
-type StringKey<T extends string> = T;
 export type ParseResult<T> = OkResult<T> | FailResult; 
 export type ParseFn<T> = (
     input:string,
@@ -43,7 +39,7 @@ export type ParserValue<T>
           ? R2
           : never;
 export type ParserValues<T extends readonly any[]> 
-  = {[P in keyof T]:ParserValue<T[P]>} extends Array<any>
+  = {[P in keyof T]:ParserValue<T[P]>} extends any[]
       ? {[P in keyof T]:ParserValue<T[P]>}
       : never;
 export type Append<Elm, T extends readonly unknown[]> = ((
@@ -173,6 +169,15 @@ const makeParser = <T>(action:ParseFn<T>) => {
   return new Parser<T>(action); 
 }
 
+type ErrorFormatter = (input:string,index:number,expected:string[])=>string;
+const simpleFormatter = (input:string, index:number,expected:string[])=>{
+  var {line,column} = offsetToPosition(input,index);
+  return `error at [line:${line} column:${column}]\n`+
+         ` -> expected: ${expected.join(', ')}`;
+}
+let _defaultFormatter = simpleFormatter;
+
+
 class Parser<T>{
   constructor(private action:ParseFn<T>){}
 
@@ -180,12 +185,17 @@ class Parser<T>{
     return this.action(input,index,makeOk,makeFail);
   }
 
-  tryParse(input:string) {
+  static setDefaultErrorFormatter(formatter:ErrorFormatter){
+    _defaultFormatter = formatter;
+  }
+
+  tryParse(input:string,formatter?:ErrorFormatter) {
+    const _formatter = formatter || _defaultFormatter;
     const reply = this.parse(input);
     if (reply.status) {
       return reply.value;
     } else {
-      const msg = formatError(input,reply.furthest,reply.expect);
+      const msg = _formatter(input,reply.furthest,reply.expect);
       const err = new Error(msg);
       throw err;
     }
