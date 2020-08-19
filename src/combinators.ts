@@ -80,7 +80,24 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   }
   const toParsers = <T>(xs:readonly ParserLike<T>[]) => xs.map(x=> toParser(x));
   
-  
+  type PipeFn<T1,T2> = (value:T1)=>T2;
+interface Pipe {
+  <A,B>(a:A,ab:PipeFn<A,B>):B;
+  <A,B,C>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>):C;
+  <A,B,C,D>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>):D;
+  <A,B,C,D,E>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>):E;
+  <A,B,C,D,E,F>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>):F;
+  <A,B,C,D,E,F,G>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>):G;
+  <A,B,C,D,E,F,G,H>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>,gh:PipeFn<G,H>):H;
+  <A,B,C,D,E,F,G,H,I>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>,gh:PipeFn<G,H>,hi:PipeFn<H,I>):I;
+}
+const pipe:Pipe = 
+  (seed:any,...fns:[...PipeFn<any,any>[]]) =>{
+    return fns.reduce((acc,func)=>{
+      return func(acc);
+    },seed);
+  }
+
   
   const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
     return makeParser((input,index)=>{
@@ -255,5 +272,5 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   
   export {toParser,toParsers, lazy, desc, 
     map,seq,seqToMono, seqObj, createLanguage,alt,peek,
-    takeWhile,takeTo}
+    takeWhile,takeTo,pipe}
   

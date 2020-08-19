@@ -1,8 +1,11 @@
-import {makeParser,toParser,ParserLike
-  ,ParserValue,isFail,index
-  ,alt,seq,ok,isOk,fail,Parser,pipe
-  ,makeOk,map,desc
+import {makeParser
+  ,isFail
+  ,ok,isOk,fail,Parser
+  ,makeOk
 ,Mark,Node} from "./parser"
+import { toParser,ParserLike
+  ,ParserValue,alt,seq,pipe,map,desc} from "./combinators"
+import {index} from "./token";
 
 const join = (sep:string) => <T extends string[]>(parserLike:ParserLike<T>) =>{
   const parser = toParser(parserLike);
