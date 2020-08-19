@@ -2,9 +2,9 @@
   "name": "parser-combinator-ts",
   "version": "1.0.0",
   "description": "",
-  "main": "./src/test.ts",
+  "main": "./src/index.ts",
   "scripts": {
-    "start": "parcel ./src/test.ts",
+    "start": "parcel ./src/index.ts",
     "build": "parcel build ./src/index.ts",
     "test":"jest"
   },
