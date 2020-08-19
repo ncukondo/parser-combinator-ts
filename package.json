@@ -2,15 +2,20 @@
   "name": "parser-combinator-ts",
   "version": "1.0.0",
   "description": "",
-  "main": "./src/index.ts",
+  "main": "./src/test.ts",
   "scripts": {
-    "start": "parcel ./src/index.ts",
-    "build": "parcel build ./src/index.ts"
+    "start": "parcel ./src/test.ts",
+    "build": "parcel build ./src/index.ts",
+    "test":"jest"
   },
   "dependencies": {},
   "devDependencies": {
     "parcel-bundler": "^1.6.1",
-    "typescript":"^3.9.7"
+    "typescript":"^3.9.7",
+    "@types/jest": "^24.0.22",
+    "jest": "^24.9.0",
+    "ts-jest": "^24.1.0"
+
   },
   "keywords": []
 }

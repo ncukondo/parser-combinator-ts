@@ -48,7 +48,6 @@ const insert = <T>(target:T[],index:number,item:T) =>
 
 const formatGot = (input:string, index:number,option?:FormatOption) => {
   if (index >= input.length) return "Got the end of the input";
-  console.log(index);
   const opt = {...formatOptionDefault,...option};
   const position = offsetToPosition(input, index);
   const errorLine = position.line;

@@ -8,8 +8,7 @@ import {
   takeTo,
   regexp,
   all
-} from "./parser";
-import "./parser-method";
+} from "./index";
 
 try{
   const altTest = () => alt("ccc", string("bbb"));
