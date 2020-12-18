@@ -71,14 +71,6 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   const isRegExp = (x:any):x is RegExp => x instanceof RegExp;
   const isArray = <T>(x:any):x is Array<T> => Array.isArray(x);
   
-  const toParser = <T>(x:ParserLike<T>):Parser<T> =>{
-    if(isParser(x)) return x;
-    if(isString(x)) return string(x) as unknown as Parser<T>;
-    if(isRegExp(x)) return regexp(x) as unknown as Parser<T>;
-    if(isFunction(x)) return lazy(x);
-    return x;
-  }
-  const toParsers = <T>(xs:readonly ParserLike<T>[]) => xs.map(x=> toParser(x));
   
   type PipeFn<T1,T2> = (value:T1)=>T2;
 interface Pipe {
@@ -104,6 +96,16 @@ const pipe:Pipe =
       return func().parse(input,index)
     })
   }
+
+  const toParser = <T>(x:ParserLike<T>):Parser<T> =>{
+    if(isParser(x)) return x;
+    if(isString(x)) return string(x) as unknown as Parser<T>;
+    if(isRegExp(x)) return regexp(x) as unknown as Parser<T>;
+    if(isFunction(x)) return lazy(x);
+    return x;
+  }
+  const toParsers = <T>(xs:readonly ParserLike<T>[]) => xs.map(x=> toParser(x));
+
   
   
   const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
