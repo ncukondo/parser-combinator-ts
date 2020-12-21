@@ -1,11 +1,9 @@
 import { digit, takeTo, string, seqObj, all, alt } from "../src/index";
 
-const formatDate = (date: Date) => {
-  const year = date.getFullYear().toString().padStart(4, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const day = date.getDate().toString().padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+declare const test: jest.It;
+declare const expect: jest.Expect;
+declare const describe: jest.Describe;
+
 
 const extractDateInfo = (filename: string) => {
   const toDate = (i: { year: number; date: number; month: number }) =>
@@ -47,6 +45,6 @@ describe("extractDateInfo", () => {
     ${"file(2020_10_12-11_13).txt"}      | ${new Date(2020, 11 - 1, 13)}
     ${"file(2020_10_12-2021_11_10).txt"} | ${new Date(2021, 11 - 1, 10)}
   `("returns $date when $filename", ({ filename, date }) => {
-    expect(extractDateInfo(filename).date).toEqual(date);
+    expect(extractDateInfo(filename)?.date).toEqual(date);
   });
 });

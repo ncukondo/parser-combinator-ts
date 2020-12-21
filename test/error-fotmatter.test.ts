@@ -1,5 +1,9 @@
 import { formatError } from "../src/error-formatter";
 
+declare const test: jest.It;
+declare const expect: jest.Expect;
+declare const describe: jest.Describe;
+
 const testText = `This screen is visible only in development. It will not appear if the app crashes in production.
 Open your browser’s developer console to further inspect this error.
 This error overlay is powered by react-error-overlay used in create-react-app`;
