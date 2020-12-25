@@ -6,13 +6,12 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "moduleResolution": "node",
     "lib": [
       "es2020",
       "DOM"
     ],
     "target": "es2020",
-    "rootDir": "./",
+    "rootDir": "./src",
   },
   "include": [
     "src/**/*"
