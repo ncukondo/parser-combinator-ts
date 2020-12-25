@@ -10,4 +10,22 @@ describe('basic methods',()=>{
         ],
       });
   })
+  test('many',()=>{
+    expect(regexp(/./).many().withRawText().parse('123456')).toEqual({
+      "expect":  [],
+      "index": 6,
+      "status": true,
+      "value": {
+        "rawText": "123456",
+        "value": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+        ],
+      },
+    });
+  })
 })

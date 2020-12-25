@@ -107,7 +107,7 @@ _.many = function<T>(this:Parser<T>) {
         lastIndex = result.index;
         accum = [...accum,result.value];
       } else {
-        return ok(i, accum);
+        return ok( lastIndex, accum);
       }
     }
   });
