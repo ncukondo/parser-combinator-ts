@@ -35,7 +35,7 @@ declare module './parser' {
     node:(nodeName:string)=>Parser<Mark<T>>;
     notFollowedBy:<U>(notParser:ParserLike<U>) => Parser<T>;
     followedBy:<U>(followParser:ParserLike<U>) => Parser<T>;
-    withRawText:<T, U>() => Parser<{value: T;rawText: string;}>
+    withRawText:() => Parser<{value: T;rawText: string;}>
     label:<U extends string>(name:U) => readonly [U,Parser<T>];
   }
 }
@@ -229,7 +229,7 @@ _.mark = function<T>(this:Parser<T>):Parser<Mark<T>>{
     .map(([start, value, end]) =>({start,value,end}));
 };
 
-_.withRawText = function<T,U>(this:Parser<T>){
+_.withRawText = function<T>(this:Parser<T>){
   const self = this;
   return makeParser(function(input, i,ok,fail) {
     const reply = self.parse(input, i);

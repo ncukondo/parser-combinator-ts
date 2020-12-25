@@ -88,7 +88,7 @@ type ErrorFormatter = (input:string,index:number,expected:string[])=>string;
 const simpleFormatter = (input:string, index:number,expected:string[])=>{
   var {line,column} = offsetToPosition(input,index);
   return `error at [line:${line} column:${column}]\n`+
-         ` -> expected: ${expected.join(', ')}`;
+        ` -> expected: ${expected.join(', ')}`;
 }
 let _defaultFormatter = simpleFormatter;
 
