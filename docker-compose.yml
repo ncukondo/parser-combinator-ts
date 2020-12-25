@@ -6,10 +6,11 @@ services:
             dockerfile: ./.devcontainer/dockerfile
         env_file: .env
         volumes:
-            - ./:/usr/src/app
+            - ./:/usr/src/${APPNAME:-app}
             - config:/root
-            - node_modules:/usr/src/app/node_modules
+            - node_modules:/usr/src/${APPNAME:-app}/node_modules
         tty: true
+        working_dir: /usr/src/${APPNAME:-app}
         ports:
             - '8080:5000'
             - "35729:35729"

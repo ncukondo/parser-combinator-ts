@@ -1,9 +1,10 @@
 {
+  "name":"parser-combinator-ts",
   "dockerComposeFile": [
     "../docker-compose.yml"
   ],
   "service": "node",
-  "workspaceFolder": "/usr/src/app",
+  "workspaceFolder": "/usr/src/parser-combinator-ts",
   "extensions": [
     "coenraads.bracket-pair-colorizer-2",
     "oderwat.indent-rainbow",
