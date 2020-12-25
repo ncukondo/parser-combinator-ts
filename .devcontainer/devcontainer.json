@@ -1,0 +1,15 @@
+{
+  "dockerComposeFile": [
+    "../docker-compose.yml"
+  ],
+  "service": "node",
+  "workspaceFolder": "/usr/src/app",
+  "extensions": [
+    "coenraads.bracket-pair-colorizer-2",
+    "oderwat.indent-rainbow",
+    "ms-azuretools.vscode-docker",
+    "svelte.svelte-vscode",
+    "fivethree.vscode-svelte-snippets",
+    "dbaeumer.vscode-eslint"
+  ]
+}

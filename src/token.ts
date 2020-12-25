@@ -79,6 +79,5 @@ export {
   EOL,SOL,EOF,digit,digits,letter,letters
   ,optWhitespace, whitespace,cr,lf,crlf,NL
   ,any,all,index
-  ,makeParser,makeFail,makeOk
   ,rangeChar,oneOf,noneOf
 }

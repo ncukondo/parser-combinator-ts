@@ -1,0 +1,20 @@
+FROM golang:1.14.13-alpine3.12 as builder
+ARG CLI_VERSION="trunk"
+ENV GH_CLI_VERSION="$CLI_VERSION"
+RUN apk update && apk add make git gcc libc-dev
+RUN git clone --depth 1 --branch $GH_CLI_VERSION https://github.com/cli/cli.git /go/src/gh-cli
+RUN cd /go/src/gh-cli && make
+
+FROM node:13-alpine
+
+RUN apk update && apk add git openssh
+
+COPY --from=builder /go/src/gh-cli/bin/gh /usr/local/bin/
+
+# copy gitcofig
+COPY .devcontainer/.githubconfig/ /root/
+RUN chmod 600 ~/.ssh/id_rsa_github
+
+
+WORKDIR /usr/src/app
+ENTRYPOINT ["/bin/sh"]

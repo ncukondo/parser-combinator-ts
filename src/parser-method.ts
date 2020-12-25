@@ -31,6 +31,7 @@ declare module './parser' {
     skip:<U>(skip:ParserLike<U>) => Parser<T>;
     then:<U>(parser:ParserLike<U>) => Parser<U>;
     mark:()=>Parser<Mark<T>>;
+    of:<U>(value:U)=>Parser<U>;
     node:(nodeName:string)=>Parser<Mark<T>>;
     notFollowedBy:<U>(notParser:ParserLike<U>) => Parser<T>;
     followedBy:<U>(followParser:ParserLike<U>) => Parser<T>;
@@ -226,6 +227,11 @@ _.mark = function<T>(this:Parser<T>):Parser<Mark<T>>{
   return seq(index, this, index)
     .map(([start, value, end]) =>({start,value,end}));
 };
+
+_.of = function<T,U>(this:Parser<T>,value:U):Parser<U>{
+  return this.map(()=> value);
+};
+
 
 _.node = function<T>(this:Parser<T>,name:string):Parser<Node<T>>{
   return seq(index, this, index)

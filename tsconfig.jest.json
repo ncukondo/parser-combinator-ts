@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "strict": true,
-    "module": "ESNext",
+    "module": "commonjs",
     "esModuleInterop": true,
     "sourceMap": true,
     "declaration": true,
@@ -11,7 +11,7 @@
       "es2020",
       "DOM"
     ],
-    "target": "es2020",
+    "target": "es2018",
     "rootDir": "./",
   },
   "include": [

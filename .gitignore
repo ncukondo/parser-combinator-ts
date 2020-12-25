@@ -83,3 +83,5 @@ typings/
 public/bundle/*
 
 .githubconfig
+
+dist
