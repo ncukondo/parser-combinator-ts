@@ -248,7 +248,7 @@ const pipe:Pipe =
     })
   }
   
-  const takeWhile = <T>(predicate:ParserLike<T>) =>{
+  const takeWhile = (predicate:ParserLike<unknown>) =>{
     const parser = toParser(predicate);
     return makeParser((input, i,ok) =>{
       var j = i;
@@ -259,7 +259,7 @@ const pipe:Pipe =
     });
   }
   
-  const takeTo = <T>(...stopParsers:ParserLike<T>[]) =>{
+  const takeTo = (...stopParsers:ParserLike<unknown>[]) =>{
     const parsers = toParsers(stopParsers);
     const isStop = (input:string,i:number) =>
       parsers.some(parser=>isOk(parser.parse(input,i))); 
