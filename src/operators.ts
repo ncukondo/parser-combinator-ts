@@ -47,7 +47,7 @@ const many = <T>(parserLike: ParserLike<T>) => {
         lastIndex = result.index;
         accum = [...accum, result.value];
       } else {
-        return ok(i, accum);
+        return ok(lastIndex, accum);
       }
     }
   });

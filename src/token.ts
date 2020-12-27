@@ -47,7 +47,7 @@ const any = makeParser(function(input, i,ok,fail) {
 });
 
 const all = makeParser((input, i,ok) =>
- ok(input.length, input.slice(i))
+  ok(input.length, input.slice(i))
 );
 
 const EOF = makeParser((input, i,ok,fail) =>{
