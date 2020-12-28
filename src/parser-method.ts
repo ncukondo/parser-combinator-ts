@@ -4,7 +4,15 @@ import  {seqToMono,toParser,seq
   ,ParserLike,alt, ParserValue} from './combinators';
 import  {index} from './token';
 
-type Flattened<T> = T extends ReadonlyArray<infer U> ?  Flattened<U> : T;
+type DeepFlattened<T> = T extends ReadonlyArray<infer U> ?  DeepFlattened<U> : T;
+type Tail<T extends readonly unknown[]> = T extends readonly [any, ...infer U] ? U : [];
+type Flatten<T extends readonly unknown[]> =
+    { 
+      0: [], 
+      1: T[0] extends unknown[]
+          ? [...T[0],...Flatten<Tail<T>>]
+          : [T[0],...Flatten<Tail<T>>]
+    }[T extends [] ? 0 : 1];
     
 declare module './parser' {
   interface Parser<T>{
@@ -18,11 +26,12 @@ declare module './parser' {
     plus<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
       : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
-    flatDeep(): T extends [...infer R] ? Parser<Flattened<T>[]> : Parser<T>;
+    flatDeep(): T extends [...infer R] ? Parser<DeepFlattened<T>[]> : Parser<T>;
+    flat(): T extends readonly any[] ? Parser<Flatten<T>> : Parser<T>;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
     sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
     sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
-    many:() => Parser<readonly T[]>;
+    many:() => Parser<T[]>;
     chain:<U>(chainFn:(v:T)=>Parser<U>) => Parser<U>;
     assert:(checkFn:(v:T)=>boolean) => this;
     not:<U>(notParser:ParserLike<U>) => Parser<T>;
@@ -91,6 +100,12 @@ _.plus = _.concat;
 _.flatDeep = function <T>(this:Parser<T>) {
   return this.map(v=>{
     return Array.isArray(v) ? v.flat(Infinity) : v;
+  })
+}
+
+_.flat = function <T>(this:Parser<T>) {
+  return this.map(v=>{
+    return Array.isArray(v) ? v.flat() : v;
   })
 }
 

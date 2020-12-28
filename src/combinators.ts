@@ -130,9 +130,9 @@ const pipe:Pipe =
   
   
   const seq = <
-      T extends [ParserLike<unknown>,...ParserLike<unknown>[]]>
+      T extends readonly[ParserLike<unknown>,...ParserLike<unknown>[]]>
     (...parserLikes:T)
-      :Parser<ParserValues<T>>=> {
+      :Parser<ParserValues<T>> => {
     const unit = map(u=>[u]);
     const [firstLike,...restLikes] = parserLikes;
     const first = toParser(firstLike).pipe(unit);
