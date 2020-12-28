@@ -41,5 +41,18 @@ describe('basic methods',()=>{
           "b"
         ]);
   });
+  test('plus(which is equal to concat',()=>{
+    const parser = regexp(/./).plus(regexp(/\d/).many().plus(seq('a','b')));
+    expect(parser.tryParse('12345ab')).toEqual(
+      [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "a",
+          "b"
+        ]);
+  });
 
 })

@@ -13,6 +13,9 @@ declare module './parser' {
     concat<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
       : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
+    plus<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
+      ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
+      : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
     sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
     sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
@@ -78,7 +81,9 @@ _.concat = function <T extends unknown[],U extends ParserLike<unknown>>(this:Par
   return seq(this,x).map(([l,r])=>{
     return Array.isArray(l) ? l.concat(r) : [l].concat(r as any);
   })
-}
+};
+
+_.plus = _.concat;
 
 
 _.pick1 = function<T extends object|any[],I extends number|string|symbol>
