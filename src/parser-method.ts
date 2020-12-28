@@ -1,7 +1,7 @@
 import {Parser,makeParser,isFail,isArray,isOk,ok,fail,
   makeOk,Mark,Node} from './parser'
 import  {seqToMono,toParser,seq
-  ,ParserLike,alt} from './combinators';
+  ,ParserLike,alt, ParserValue} from './combinators';
 import  {index} from './token';
     
 declare module './parser' {
@@ -10,8 +10,9 @@ declare module './parser' {
     tap:(tapFn:(v:T)=>any)=>Parser<T>;
     desc:(expected:string|string[]) => this;
     join:(sep?:string) => T extends string[] ? Parser<string> : never;
-    concat<U extends unknown[]>(arr:U): T extends unknown[] ? Parser<[...T, ...U]> : never;
-    concat<U>(unit:U): T extends unknown[] ? Parser<[...T, U]> : never;
+    concat<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
+      ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
+      : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
     sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
     sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
@@ -72,8 +73,11 @@ _.join = function<T extends string[]>(this:Parser<T>,sep:string=""){
   return this.map(arr => arr.join(sep));
 };
 
-_.concat = function <T extends unknown[],U>(this:Parser<T>,x:U) {
-  return this.map(arr => arr.concat(x));
+//@ts-ignore
+_.concat = function <T extends unknown[],U extends ParserLike<unknown>>(this:Parser<T>,x:U) {
+  return seq(this,x).map(([l,r])=>{
+    return Array.isArray(l) ? l.concat(r) : [l].concat(r as any);
+  })
 }
 
 

@@ -28,4 +28,18 @@ describe('basic methods',()=>{
       },
     });
   })
+  test('concat',()=>{
+    const parser = regexp(/./).concat(regexp(/\d/).many().concat(seq('a','b')));
+    expect(parser.tryParse('12345ab')).toEqual(
+      [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "a",
+          "b"
+        ]);
+  });
+
 })
