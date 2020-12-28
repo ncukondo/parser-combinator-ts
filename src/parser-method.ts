@@ -10,6 +10,8 @@ declare module './parser' {
     tap:(tapFn:(v:T)=>any)=>Parser<T>;
     desc:(expected:string|string[]) => this;
     join:(sep?:string) => T extends string[] ? Parser<string> : never;
+    concat<U extends unknown[]>(arr:U): T extends unknown[] ? Parser<[...T, ...U]> : never;
+    concat<U>(unit:U): T extends unknown[] ? Parser<[...T, U]> : never;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
     sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
     sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
@@ -69,6 +71,11 @@ _.desc =  function<T>(this:Parser<T>,expected:string|string[]){
 _.join = function<T extends string[]>(this:Parser<T>,sep:string=""){
   return this.map(arr => arr.join(sep));
 };
+
+_.concat = function <T extends unknown[],U>(this:Parser<T>,x:U) {
+  return this.map(arr => arr.concat(x));
+}
+
 
 _.pick1 = function<T extends object|any[],I extends number|string|symbol>
   (this:Parser<T>,key:I){
