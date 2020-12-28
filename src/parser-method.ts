@@ -3,6 +3,8 @@ import {Parser,makeParser,isFail,isArray,isOk,ok,fail,
 import  {seqToMono,toParser,seq
   ,ParserLike,alt, ParserValue} from './combinators';
 import  {index} from './token';
+
+type Flattened<T> = T extends ReadonlyArray<infer U> ?  Flattened<U> : T;
     
 declare module './parser' {
   interface Parser<T>{
@@ -16,10 +18,11 @@ declare module './parser' {
     plus<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
       : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
+    flatDeep(): T extends [...infer R] ? Parser<Flattened<T>[]> : Parser<T>;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
     sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
     sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
-    many:() => Parser<T[]>;
+    many:() => Parser<readonly T[]>;
     chain:<U>(chainFn:(v:T)=>Parser<U>) => Parser<U>;
     assert:(checkFn:(v:T)=>boolean) => this;
     not:<U>(notParser:ParserLike<U>) => Parser<T>;
@@ -77,7 +80,7 @@ _.join = function<T extends string[]>(this:Parser<T>,sep:string=""){
 };
 
 //@ts-ignore
-_.concat = function <T extends unknown[],U extends ParserLike<unknown>>(this:Parser<T>,x:U) {
+_.concat = function <T,U extends ParserLike<unknown>>(this:Parser<T>,x:U) {
   return seq(this,x).map(([l,r])=>{
     return Array.isArray(l) ? l.concat(r) : [l].concat(r as any);
   })
@@ -85,6 +88,11 @@ _.concat = function <T extends unknown[],U extends ParserLike<unknown>>(this:Par
 
 _.plus = _.concat;
 
+_.flatDeep = function <T>(this:Parser<T>) {
+  return this.map(v=>{
+    return Array.isArray(v) ? v.flat(Infinity) : v;
+  })
+}
 
 _.pick1 = function<T extends object|any[],I extends number|string|symbol>
   (this:Parser<T>,key:I){
@@ -99,6 +107,7 @@ _.sepBy = function<T,U>(this:Parser<T>,sepLike:ParserLike<U>){
 
 _.sepBy1 = function<T,U>(this:Parser<T>,sepLike:ParserLike<U>){
   const sep = toParser(sepLike);
+  //@ts-ignore
   const pairs = seqToMono(sep,[this]).many();
   return seq(this, pairs)
     .map(([first,rest])=> [first,...rest]);

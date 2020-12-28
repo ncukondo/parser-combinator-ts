@@ -54,5 +54,16 @@ describe('basic methods',()=>{
           "b"
         ]);
   });
+  test('flatDeep',()=>{
+    const parser = seq(regexp(/./),seq(/\d/,/\d/).many()).flatDeep();
+    expect(parser.tryParse('123456ab')).toEqual(
+      [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+        ]);
+  });
 
 })
