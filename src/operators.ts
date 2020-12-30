@@ -17,9 +17,11 @@ import {
   seq,
   pipe,
   map,
-  desc
+  desc,
+  seqToMono,
+  takeTo
 } from "./combinators";
-import { index } from "./token";
+import { index, NL, SOL } from "./token";
 
 const join = (sep: string) => <T extends string[]>(
   parserLike: ParserLike<T>
@@ -245,6 +247,45 @@ const followedBy = <T>(followParserLike: ParserLike<T>) => <U>(
   });
 };
 
+const toInnerParser = <T>(innerParser: Parser<T>) => (
+    outerParser: Parser<string>
+  ) => {
+  return makeParser((input, i) => {
+      const outerRes = outerParser.parse(input, i);
+      if (isFail(outerRes)) return outerRes;
+      const textToParse = input.slice(0, i) + outerRes.value;
+      const innerRes = innerParser.parse(textToParse, i);
+      if(isFail(innerRes)){
+        const expect = [`${innerRes.expect.join(' or ')} in index:${innerRes.furthest} of textToParse`];
+        return {...innerRes,expect,furthest:i}
+      }
+      return innerRes;
+    });
+};
+
+const asWholeLine = <T>(parser:Parser<T>) => {
+  const target = takeTo(NL);
+  return seqToMono(SOL,[target],NL).pipe(toInnerParser(parser)); 
+}
+
+interface WithRawText {
+  <T>():(parser:Parser<T>)=>Parser<{value:T,rawText:string}>;
+  <T,U>(fn:(text:string,value:T)=>U):(parser:Parser<T>)=>Parser<U>;
+}
+const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:Parser<T>)=>{
+  return makeParser((input, i,ok) => {
+    const reply = parser.parse(input, i);
+    if(isFail(reply)) return reply;
+    const rawText = input.slice(i,reply.index);
+    const value = reply.value;
+    if(fn){
+      ok(reply.index,fn(rawText,value))
+    }
+    return ok(reply.index,{value,rawText});
+  });
+}
+
+
 export {
   map,
   desc,
@@ -267,5 +308,8 @@ export {
   wrap,
   fallback,
   assert,
-  chain
+  chain,
+  toInnerParser,
+  asWholeLine,
+  withRawText
 };

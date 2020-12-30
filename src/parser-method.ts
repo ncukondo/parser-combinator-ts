@@ -37,7 +37,9 @@ declare module './parser' {
     not:<U>(notParser:ParserLike<U>) => Parser<T>;
     fallback:<U>(fallbackResult:U) => Parser<T|U>;
     wrap:<L,R>(leftLike:ParserLike<L>, rightLike?:ParserLike<R>)=>Parser<T>;
-    trim:<L,R>(leftLike?:ParserLike<L>, rightLike?:ParserLike<R>)=>Parser<T>;
+    trim():Parser<T>;
+    trim<Q>(quoteLike:ParserLike<Q>):Parser<T>;
+    trim<L,R>(leftLike:ParserLike<L>, rightLike:ParserLike<R>):Parser<T>;
     trimL:<L>(leftLike?:ParserLike<L>)=>Parser<T>;
     trimR:<R>(rightLike?:ParserLike<R>)=>Parser<T>;
     or:<U>(altLike:ParserLike<U>)=>Parser<T|U>;
@@ -189,7 +191,8 @@ _.wrap = function<T,L,R>(this:Parser<T>,leftLike:ParserLike<L>, rightLike?:Parse
 };
 
 _.trim = function<T,L,R>(this:Parser<T>,leftLike?:ParserLike<L>, rightLike?:ParserLike<R>){
-  const left = leftLike ?? /[ \n\r\t]*/;
+  const left = leftLike ?? /[ \n\r\t]*/m;
+  const right = rightLike ?? left;
   return this.wrap(left,rightLike);
 };
 

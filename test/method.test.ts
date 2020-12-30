@@ -1,4 +1,4 @@
-import { digit, takeTo, string, regexp,seqObj, all, alt,seq } from "../src/index";
+import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF } from "../src/index";
 
 describe('basic methods',()=>{
   test('withRawText',()=>{
@@ -53,6 +53,12 @@ describe('basic methods',()=>{
           "a",
           "b"
         ]);
+  });
+  test('trim',()=>{
+    const parser = string("test").trim();
+    expect(parser.tryParse(`   
+    test   
+    `)).toBe("test");
   });
   test('flat',()=>{
     const parser = seq(regexp(/./),seq(/\d/,/\d/).many()).flat();
