@@ -270,9 +270,24 @@ const pipe:Pipe =
       return ok(j, input.slice(i, j));
     });
   }
+
+  interface Prev {
+    (text:string):Parser<string>;
+    <T>(parser:Parser<T>,backTo:number):Parser<T>;
+  }
+
+  const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
+    return makeParser<string|T>((input, i,ok,fail) =>{
+      const back = typeof x==="string" ? x.length : backTo ?? 0;
+      const pos = i-back;
+      if(back===0 || pos<=0) return fail(i,`enough position to see prev ${back}`);
+      const parser = typeof x==="string" ? string(x) : x;
+      return parser.parse(input,pos);
+    });
+  }
   
   
   export {toParser,toParsers, lazy, desc, 
     map,seq,seqToMono, seqObj, createLanguage,alt,peek,
-    takeWhile,takeTo,pipe}
+    takeWhile,takeTo,pipe,prev}
   
