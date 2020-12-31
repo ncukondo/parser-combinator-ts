@@ -8,7 +8,7 @@ import {
   makeOk,
   Mark,
   Node
-} from "./parser";
+} from "../parser";
 import {
   toParser,
   ParserLike,
@@ -20,8 +20,8 @@ import {
   desc,
   seqToMono,
   takeTo
-} from "./combinators";
-import { index, NL, SOL } from "./token";
+} from "../combinators";
+import { index, NL, SOL } from "../token";
 
 const join = (sep: string) => <T extends string[]>(
   parserLike: ParserLike<T>
