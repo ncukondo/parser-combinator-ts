@@ -8,6 +8,11 @@ import commonjs from '@rollup/plugin-commonjs';
 
 import pkg from './package.json';
 
+const plugins = [
+  resolve(),
+  typescript(),
+  commonjs({extensions: ['.ts', '.js']}),
+]
 
 export default [
   // モジュール用設定
@@ -16,13 +21,13 @@ export default [
     output: [
       // CommonJS用出力
       {
-        file: pkg.main,
+        file: `./dist/${pkg.main}`,
         format: 'cjs',
         sourcemap: 'inline'
       },
       // ESモジュール用出力
       {
-        file: pkg.module,
+        file: `./dist/${pkg.module}`,
         format: 'es',
         sourcemap: 'inline'
       },
@@ -32,10 +37,6 @@ export default [
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.devDependencies || {}),
     ],
-    plugins: [
-      resolve(),
-      typescript(),
-      commonjs({extensions: ['.ts', '.js']}),
-    ],
+    plugins,
   },
 ];

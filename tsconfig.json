@@ -12,6 +12,7 @@
     ],
     "target": "es2018",
     "rootDir": "./src",
+    "outDir": "./dist"
   },
   "include": [
     "src/**/*"
