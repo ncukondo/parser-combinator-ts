@@ -1,19 +1,14 @@
 {
   "name": "@ncukondo/parser-combinator-ts",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "description": "Parsimmon like parser using Typescript",
   "main": "./index.js",
   "module": "./index.esm.js",
   "types": "./index.d.ts",
-  "files": [
-    "dist",
-    "src",
-    "types"
-  ],
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "rollup -c && cpx ./package.json ./dist",
-    "release": "yarn test && yarn build && yarn publish",
+    "release": "yarn test && yarn build && yarn publish -f ./dist",
     "test": "jest"
   },
   "dependencies": {
