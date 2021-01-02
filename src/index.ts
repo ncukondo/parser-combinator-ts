@@ -7,6 +7,5 @@ Parser.setDefaultErrorFormatter(formatError);
 export * from './parser';
 export * from './token';
 export * from './combinators';
-export * from './operators/index';
 
 

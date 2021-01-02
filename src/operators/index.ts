@@ -287,7 +287,7 @@ const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:P
 
 export {
 map,
-desc,} from '../combinators';
+desc,pipe,combine} from '../combinators';
 export {
   join,
   sepBy,
