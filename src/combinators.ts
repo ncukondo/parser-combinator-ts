@@ -89,6 +89,22 @@ const pipe:Pipe =
       return func(acc);
     },seed);
   }
+interface Combine {
+  <A,B>(ab:PipeFn<A,B>):B;
+  <A,B,C>(ab:PipeFn<A,B>,bc:PipeFn<B,C>):PipeFn<A,C>;
+  <A,B,C,D>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>):PipeFn<A,D>;
+  <A,B,C,D,E>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>):PipeFn<A,E>;
+  <A,B,C,D,E,F>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>):PipeFn<A,F>;
+  <A,B,C,D,E,F,G>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>):PipeFn<A,G>;
+  <A,B,C,D,E,F,G,H>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>,gh:PipeFn<G,H>):PipeFn<A,H>;
+  <A,B,C,D,E,F,G,H,I>(ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>,gh:PipeFn<G,H>,hi:PipeFn<H,I>):PipeFn<A,I>;
+}
+const combine:Combine = 
+  (...fns:[...PipeFn<any,any>[]]) =>{
+    return (seed:any) => fns.reduce((acc,func)=>{
+      return func(acc);
+    },seed);
+  }
 
   
   const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
@@ -289,5 +305,5 @@ const pipe:Pipe =
   
   export {toParser,toParsers, lazy, desc, 
     map,seq,seqToMono, seqObj, createLanguage,alt,peek,
-    takeWhile,takeTo,pipe,prev}
+    takeWhile,takeTo,pipe,prev,combine}
   
