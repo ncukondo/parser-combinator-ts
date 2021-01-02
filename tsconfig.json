@@ -4,8 +4,9 @@
     "module": "ESNext",
     "esModuleInterop": true,
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
+    "moduleResolution": "node",
     "lib": [
       "es2020",
       "DOM"

@@ -285,10 +285,10 @@ const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:P
   });
 }
 
-
 export {
-  map,
-  desc,
+map,
+desc,} from '../combinators';
+export {
   join,
   sepBy,
   sepBy1,

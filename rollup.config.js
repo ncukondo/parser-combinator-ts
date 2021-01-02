@@ -2,41 +2,80 @@
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from 'rollup-plugin-typescript2';
 import commonjs from '@rollup/plugin-commonjs';
-//import buble from '@rollup/plugin-buble';
-//import {terser} from 'rollup-plugin-terser';
+import path from 'path';
+import { babel as pluginBabel } from "@rollup/plugin-babel";
+
+import camelCase from "lodash.camelcase";
+import upperFirst from "lodash.upperfirst";
+
+import {terser} from 'rollup-plugin-terser';
 
 
 import pkg from './package.json';
+
+const moduleName = upperFirst(camelCase(pkg.name.replace(/^\@.*\//, '')));
+
+// ライブラリに埋め込むcopyright
+const banner = `/*!
+  ${moduleName}.js v${pkg.version}
+  ${pkg.homepage}
+  Released under the ${pkg.license} License.
+*/`;
+
 
 const plugins = [
   resolve(),
   typescript(),
   commonjs({extensions: ['.ts', '.js']}),
 ]
+const indexId = path.resolve(__dirname, './src/index.ts');
+
+const outDir = `./dist`
 
 export default [
-  // モジュール用設定
+  // ブラウザ用設定
   {
+    // エントリポイント
     input: 'src/index.ts',
     output: [
-      // CommonJS用出力
+      // minifyせずに出力する
       {
-        file: `./dist/${pkg.main}`,
-        format: 'cjs',
-        sourcemap: 'inline'
+        // exportされたモジュールを格納する変数
+        name: moduleName,
+        // 出力先ファイル
+        file: `${outDir}/${pkg.browser}`,
+        // ブラウザ用フォーマット
+        format: 'iife',
+        // ソースマップをインラインで出力
+        sourcemap: 'inline',
+        // copyright
+        banner,
       },
-      // ESモジュール用出力
+      // minifyして出力する
       {
-        file: `./dist/${pkg.module}`,
-        format: 'es',
-        sourcemap: 'inline'
+        name: moduleName,
+        // minifyするので.minを付与する
+        file: `${outDir}/${pkg.browser}`.replace('.js', '.min.js'),
+        format: 'iife',
+        banner,
+        // minify用プラグインを追加で実行する
+        plugins: [
+          terser(),
+        ],
       },
     ],
-    // 他モジュールは含めない
-    external: [
-      ...Object.keys(pkg.dependencies || {}),
-      ...Object.keys(pkg.devDependencies || {}),
+    plugins: [
+      typescript(),
+      commonjs({
+        extensions: [".js", ".ts"],
+      }),
+      pluginBabel({
+        babelHelpers: "bundled",
+        configFile: path.resolve(__dirname, ".babelrc.js"),
+      }),
+      resolve({
+        browser: true,
+      }),
     ],
-    plugins,
   },
 ];
