@@ -4,7 +4,7 @@
   "description": "Parsimmon like parser using Typescript",
   "main": "./index.js",
   "module": "../esm/operators/index.js",
-  "types": "../types/index.d.ts",
+  "types": "../types/operators/index.d.ts",
   "scripts": {
   },
   "dependencies": {

@@ -17,7 +17,6 @@ import {
   seq,
   pipe,
   map,
-  desc,
   seqToMono,
   takeTo
 } from "../combinators";
@@ -30,7 +29,7 @@ const join = (sep: string) => <T extends string[]>(
   return parser.pipe(map((arr) => arr.join(sep)));
 };
 
-const many = <T>(parserLike: ParserLike<T>) => {
+const many = <T extends ParserLike<unknown>>(parserLike:T) => {
   const parser = toParser(parserLike);
 
   return makeParser((input, i, ok) => {
@@ -47,24 +46,50 @@ const many = <T>(parserLike: ParserLike<T>) => {
           );
         }
         lastIndex = result.index;
-        accum = [...accum, result.value];
+        accum = [...accum, result.value] as T[];
       } else {
         return ok(lastIndex, accum);
       }
     }
-  });
+  }) as Parser<ParserValue<T>[]>;
 };
 
-const sepBy1 = <T>(sepLike: ParserLike<T>) => <U>(
-  parserLike: ParserLike<U>
+interface Concat{
+  <T extends ParserLike<unknown>>(unit:T): ParserValue<T> extends unknown[]
+    ? <U extends ParserLike<unknown>>(parserLike: U) => ParserValue<U> extends unknown[] 
+      ? Parser<[...ParserValue<T>, ...ParserValue<U>]> 
+      : Parser<[...ParserValue<T>, ParserValue<U>]>
+    : <U extends ParserLike<unknown>>(parserLike: U) => ParserValue<U> extends unknown[] 
+      ? Parser<[ParserValue<T>, ...ParserValue<U>]> 
+      : Parser<[ParserValue<T>,ParserValue<U>]>;
+}
+//@ts-ignore
+const concat:Concat = <T extends ParserLike<unknown>>(x:T) => <U extends ParserLike<unknown>>(parserLike: U) => {
+  const parser = toParser(parserLike);
+  return seq(parser,x).map(([l,r])=>{
+    return Array.isArray(l) ? l.concat(r) : [l].concat(r as any);
+  })
+};
+const plus = concat;
+
+const pick1 = <T extends object|any[],I extends keyof T>(key:I) => (
+  parser: Parser<T>
+) => {
+  return pipe(parser,map(arr => arr[key]));
+}
+
+const sepBy1 = <T>(sepLike: ParserLike<T>) => <U extends ParserLike<unknown>>(
+  parserLike: U
 ) => {
   const sep = toParser(sepLike);
   const parser = toParser(parserLike);
-  var pairs = seq(sep, parser).pipe(
-    map(([, parser]) => parser),
+  const start = pipe(parser,map(x=>[x]));
+  var pairs = pipe(
+    seq(sep, parser),
+    pick1(1),
     many
   );
-  return seq(parser, pairs).pipe(map(([first, rest]) => [first, ...rest]));
+  return pipe(start,plus(pairs)) as Parser<ParserValue<U>[]>;
 };
 
 const sepBy = <T>(sepLike: ParserLike<T>) => <U>(parserLike: ParserLike<U>) => {
@@ -209,9 +234,9 @@ const mark = <U>(parserLike: ParserLike<U>): Parser<Mark<U>> => {
   );
 };
 
-const node = (name: string) => <U>(
+const node = <Name extends string>(name: Name) => <U>(
   parserLike: ParserLike<U>
-): Parser<Node<U>> => {
+): Parser<Node<U,Name>> => {
   const parser = toParser(parserLike);
   return pipe(
     seq(index, parser, index),
@@ -311,5 +336,8 @@ export {
   chain,
   toInnerParser,
   asWholeLine,
-  withRawText
+  withRawText,
+  concat,
+  plus,
+  pick1
 };

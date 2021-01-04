@@ -27,17 +27,17 @@ export type Mark<T> = {
   end:Index,
   value:T
 }
-export type Node<T> = {
+export type Node<T,U extends string> = {
   start:Index,
   end:Index,
-  name:string,
+  name:U,
   value:T
 }
-export type Tree<T> = {
+export type Tree<T,U extends string,I extends string> = {
   start:Index,
   end:Index,
-  name:string,
-  value:Node<T>|Tree<T>[]|(Tree<T>|Node<T>)[];
+  name:U,
+  value:Node<T,I>|Tree<T,U,I>[]|(Tree<T,U,I>|Node<T,I>)[];
 }
   
 
