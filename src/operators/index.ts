@@ -142,7 +142,7 @@ const wrap = <L, R>(leftLike: ParserLike<L>, rightLike?: ParserLike<R>) => <U>(
   const parser = toParser(parserLike);
   return pipe(
     seq(left, parser, right),
-    map(([, center]) => center)
+    pick1(1)
   );
 };
 
