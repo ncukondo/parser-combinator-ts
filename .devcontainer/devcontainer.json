@@ -1,10 +1,13 @@
 {
-  "name":"parser-combinator-ts",
-  "dockerComposeFile": [
-    "../docker-compose.yml"
+  "name": "${localWorkspaceFolderBasename}",
+  "context": "..",
+  "dockerFile": "dockerfile",
+  "workspaceFolder": "/usr/src/${localWorkspaceFolderBasename}",
+  "mounts": [
+    "source=${localWorkspaceFolder}/,target=/usr/src/${localWorkspaceFolderBasename},type=bind,consistency=cached",
+    "source=nodemodules,target=/usr/src/${localWorkspaceFolderBasename}/node_modules",
+    "source=config,target=/root",
   ],
-  "service": "node",
-  "workspaceFolder": "/usr/src/parser-combinator-ts",
   "extensions": [
     "coenraads.bracket-pair-colorizer-2",
     "oderwat.indent-rainbow",
