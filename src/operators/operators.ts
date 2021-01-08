@@ -22,7 +22,10 @@ import {
 } from "../combinators";
 import { index, NL, SOL } from "../token";
 
-const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
+const mapTo = map as <L,U>(mapFn:(value:L)=>U) => (parserLike:ParserLike<L>) =>Parser<U>;
+
+
+const join = <T extends string[]>(sep="") => mapTo((arr:T) => arr.join(sep));
 
 const many = <T extends ParserLike<unknown>>(parserLike:T):Parser<ParserValue<T>[]> => {
   const parser = toParser(parserLike);
@@ -67,7 +70,7 @@ const concat:Concat = <T extends ParserLike<unknown>>(x:T) => <U extends ParserL
 const plus = concat;
 const and = concat;
 
-const pick1 = <T extends object|any[],I extends keyof T>(key:I) => map((arr:T) => arr[key]);
+const pick1 = <T extends object|any[],I extends keyof T>(key:I) => mapTo((arr:T) => arr[key]);
 
 
 type DeepFlattened<T> = T extends ReadonlyArray<infer U> ?  DeepFlattened<U> : T;
@@ -258,10 +261,7 @@ const tap = <T extends ParserLike<unknown>>(tapFn:(v:ParserValue<T>)=>any)=> (pa
   map(v=>{tapFn(v); return v})
 );
 
-const of = <U>(value:U)=> <T extends ParserLike<unknown>>(parser:T) => pipe(
-  parser,
-  map(v=>value)
-);
+const of = <U>(value:U)=> mapTo(v=>value);
   
 
 const toInnerParser = <T extends ParserLike<unknown>>(innerParser: T) => <U extends ParserLike<string>>(
@@ -338,5 +338,6 @@ export {
   flat,
   tap,
   of,
-  flatDeep
+  flatDeep,
+  mapTo
 };

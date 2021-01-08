@@ -128,7 +128,6 @@ const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
   
 type MapOperator = {
   <T extends ParserLike<unknown>,U>(mapFn:(value:ParserValue<T>)=>U):(parserLike:T) =>Parser<U>;
-  <L,U>(mapFn:(value:L)=>U):(parserLike:ParserLike<L>) =>Parser<U>;
 }
 const map:MapOperator =  (mapFn:(value:unknown)=>unknown) => (parserLike:ParserLike<unknown>):Parser<unknown> =>{
   const parser = toParser(parserLike);
