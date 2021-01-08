@@ -49,7 +49,7 @@ declare module './parser' {
     atMost:(count:number) =>Parser<T[]>; 
     premap:(fn:(input:string)=>string)=>Parser<T>
     skip:<U>(skip:ParserLike<U>) => Parser<T>;
-    then:<U>(parser:ParserLike<U>) => Parser<U>;
+    then:<U extends ParserLike<unknown>>(parser:U) => Parser<ParserValue<U>>;
     mark:()=>Parser<Mark<T>>;
     of:<U>(value:U)=>Parser<U>;
     node:<NAME extends string>(nodeName:NAME)=>Parser<Node<T,NAME>>;
@@ -261,7 +261,7 @@ _.skip = function<T,U>(this:Parser<T>,nextLike:ParserLike<U>){
   return seqToMono([this], next);
 };
 
-_.then = function<T,U>(this:Parser<T>,nextLike:ParserLike<U>){
+_.then = function<T,U extends ParserLike<unknown>>(this:Parser<T>,nextLike:U){
   const next = toParser(nextLike);
   return seqToMono(this, [next]);
 };

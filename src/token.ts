@@ -81,3 +81,4 @@ export {
   ,any,all,index
   ,rangeChar,oneOf,noneOf
 }
+export {string,regexp} from './parser';

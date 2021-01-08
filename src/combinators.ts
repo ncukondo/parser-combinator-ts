@@ -117,8 +117,6 @@ const toParser = <T extends ParserLike<unknown>>(x:T):Parser<ParserValue<T>> =>{
   return x as unknown as Parser<ParserValue<T>>;
 }
 const toParsers = <T extends readonly ParserLike<unknown>[]>(xs:[...T]) => xs.map(x=> toParser(x));
-
-  
   
 const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
   const _expected = isArray(expected) ? expected : [expected];

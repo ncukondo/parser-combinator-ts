@@ -8,8 +8,7 @@
     "declarationMap": false,
     "moduleResolution": "node",
     "lib": [
-      "es2020",
-      "DOM"
+      "es2020"
     ],
     "target": "es2018",
     "rootDir": "./src",
