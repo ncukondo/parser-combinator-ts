@@ -4,7 +4,7 @@
   "description": "Parsimmon like parser using Typescript",
   "main": "./index.js",
   "module": "./esm/index.js",
-  "browser": "./index.es.js",
+  "browser": "./index.web.js",
   "types": "./types/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",

@@ -1,78 +1,74 @@
 import  {Parser,regexp,string,makeParser,isFail,isOk,
   isParser} from './parser';
   
-  export type Lazy<T> = ()=>Parser<T>;
-  export type ParserLike<T> =
-    string|RegExp |  Parser<T> | Lazy<T>;
-  export type ToParser<T> 
-    = T extends ParserLike<infer R>
+export type Lazy<T> = ()=>Parser<T>;
+export type ParserLike<T> = string | RegExp | Parser<T> | Lazy<T>;
+export type ToParser<T> 
+  = T extends ParserLike<infer P>
       ? T extends string|RegExp
-        ? Parser<string>
-        : T extends Lazy<infer R>
-          ? Parser<R>
-          : T extends Parser<infer R>
-            ? Parser<R>
+        ? Parser<P>
+        : T extends Lazy<unknown>
+          ? Parser<P>
+          : T extends Parser<unknown>
+            ? Parser<P>
             : never
       : never;
-  export type ParserValue<T>
-    = T extends string|RegExp 
-        ? string
-        : T extends Lazy<infer R1>
-          ? R1
-          : T extends Parser<infer R2>
-            ? R2
-            : never;
-  export type ParserValues<T extends readonly any[]> 
-    = {[P in keyof T]:ParserValue<T[P]>} extends any[]
-        ? {[P in keyof T]:ParserValue<T[P]>}
-        : never;
-  export type Append<Elm, T extends readonly unknown[]> = ((
-      arg: Elm,
-      ...rest: T
-    ) => void) extends ((...args: infer T2) => void)
-      ? T2
-      : never;
-  export type LanguageInfo<T> = 
-    {[P in keyof T]:T[P] extends (...args:infer R1) => infer R2
-      ? (...args:R1)=>Parser<R2> 
-      : Parser<T[P]>};
-  export type ParserContainer<T> = {
-    [P in keyof T]:
-      T[P] extends (A1: infer R1,  ...rest:infer R2)=> infer R3
-        ? (info:LanguageInfo<T>,A1:R1,...rest:R2) => Parser<R3>
-        : ((info:LanguageInfo<T>)=>Parser<T[P]>)|
-          ParserLike<T[P]>
-    };
-  export type Length<T extends readonly any[]> = T['length']
-  export type Tail<T extends readonly any[]> = Length<T> extends 0 ? [] : (((...b: T) => void) extends (a:any, ...b: infer I) => void ? I : [])
-  export type Labelable<T> = (readonly [string,ParserLike<T>])|ParserLike<T>;
-  export type LabelableToLabeleds<T extends readonly Labelable<unknown>[]> 
-    = {[P in keyof T]:T[P] extends readonly [infer R,ParserLike<any>]?[R extends string?R:never,ParserValue<T[P][1]>]:never}[number]
-  export type Markable<T> = (readonly [ParserLike<T>])|ParserLike<T>;
-  export type MarkableToMono<T extends readonly Markable<any>[]> = 
-    NotUnion<
-      {[P in keyof T]:T[P] extends readonly [ParserLike<any>]?ToParser<T[P][0]>:never}[number]
-    >;
-  type NotUnion<T, Org=T> =T extends any
-    ? Org[] extends T[]
-      ? Org
+export type ParserValue<T>
+= T extends ParserLike<infer P>
+? T extends string|RegExp
+  ? P & string  
+  : T extends Lazy<unknown>
+    ? P
+    : T extends Parser<unknown>
+      ? P
       : never
-    : never;
-  export type TupleToObject<T extends [string, any]> = {
-      [K in T[0]]: Extract<T, [K, any]>[1]
-  }
-  export type LabelableToObj<T extends readonly Labelable<unknown>[]> =
-    TupleToObject<LabelableToLabeleds<T>>;
-            
-  
-  
-  const isString = (x:any):x is string => typeof x === "string";
-  const isFunction = (x:any):x is Function => typeof x ==="function";
-  const isRegExp = (x:any):x is RegExp => x instanceof RegExp;
-  const isArray = <T>(x:any):x is Array<T> => Array.isArray(x);
-  
-  
-  type PipeFn<T1,T2> = (value:T1)=>T2;
+: never;
+export type ParserValues<T extends readonly any[]> 
+  = {[P in keyof T]:ParserValue<T[P]>} extends any[]
+      ? {[P in keyof T]:ParserValue<T[P]>}
+      : never;
+export type Append<Elm, T extends readonly unknown[]> = [Elm,...T];
+export type LanguageInfo<T> = 
+  {[P in keyof T]:T[P] extends (...args:infer R1) => infer R2
+    ? (...args:R1)=>Parser<R2> 
+    : Parser<T[P]>};
+export type ParserContainer<T> = {
+  [P in keyof T]:
+    T[P] extends (A1: infer R1,  ...rest:infer R2)=> infer R3
+      ? (info:LanguageInfo<T>,A1:R1,...rest:R2) => Parser<R3>
+      : ((info:LanguageInfo<T>)=>Parser<T[P]>)|
+        ParserLike<T[P]>
+  };
+export type Length<T extends readonly any[]> = T['length']
+export type Tail<T extends readonly any[]> = Length<T> extends 0 ? [] : (((...b: T) => void) extends (a:any, ...b: infer I) => void ? I : [])
+export type Labelable<T> = (readonly [string,ParserLike<T>])|ParserLike<T>;
+export type LabelableToLabeleds<T extends readonly Labelable<unknown>[]> 
+  = {[P in keyof T]:T[P] extends readonly [infer R,ParserLike<any>]?[R extends string?R:never,ParserValue<T[P][1]>]:never}[number]
+export type Markable<T> = (readonly [ParserLike<T>])|ParserLike<T>;
+export type MarkableToMono<T extends readonly Markable<any>[]> = 
+  NotUnion<
+    {[P in keyof T]:T[P] extends readonly [ParserLike<any>]?ToParser<T[P][0]>:never}[number]
+  >;
+type NotUnion<T, Org=T> =T extends any
+  ? Org[] extends T[]
+    ? Org
+    : never
+  : never;
+export type TupleToObject<T extends [string, any]> = {
+    [K in T[0]]: Extract<T, [K, any]>[1]
+}
+export type LabelableToObj<T extends readonly Labelable<unknown>[]> =
+  TupleToObject<LabelableToLabeleds<T>>;
+          
+
+
+const isString = (x:any):x is string => typeof x === "string";
+const isFunction = (x:any):x is Function => typeof x ==="function";
+const isRegExp = (x:any):x is RegExp => x instanceof RegExp;
+const isArray = <T>(x:any):x is Array<T> => Array.isArray(x);
+
+
+type PipeFn<T1,T2> = (value:T1)=>T2;
 interface Pipe {
   <A,B>(a:A,ab:PipeFn<A,B>):B;
   <A,B,C>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>):C;
@@ -107,51 +103,53 @@ const combine:Combine =
   }
 
   
-  const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
-    return makeParser((input,index)=>{
-      return func().parse(input,index)
-    })
-  }
+const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
+  return makeParser((input,index)=>{
+    return func().parse(input,index)
+  })
+}
 
-  const toParser = <T>(x:ParserLike<T>):Parser<T> =>{
-    if(isParser(x)) return x;
-    if(isString(x)) return string(x) as unknown as Parser<T>;
-    if(isRegExp(x)) return regexp(x) as unknown as Parser<T>;
-    if(isFunction(x)) return lazy(x);
-    return x;
-  }
-  const toParsers = <T>(xs:readonly ParserLike<T>[]) => xs.map(x=> toParser(x));
+const toParser = <T extends ParserLike<unknown>>(x:T):Parser<ParserValue<T>> =>{
+  if(isParser(x)) return x as unknown as Parser<ParserValue<T>>;
+  if(isString(x)) return string(x) as unknown as Parser<ParserValue<T>>;
+  if(isRegExp(x)) return regexp(x) as unknown as Parser<ParserValue<T>>;
+  if(isFunction(x)) return lazy(x as unknown as ()=>Parser<ParserValue<T>>);
+  return x as unknown as Parser<ParserValue<T>>;
+}
+const toParsers = <T extends readonly ParserLike<unknown>[]>(xs:[...T]) => xs.map(x=> toParser(x));
 
   
   
-  const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
-    const _expected = isArray(expected) ? expected : [expected];
-    return makeParser((input, i,ok,fail) =>{
-      var reply = parser.parse(input, i);
-      return {...reply,expect:_expected};
-    });
-  };
+const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
+  const _expected = isArray(expected) ? expected : [expected];
+  return makeParser((input, i,ok,fail) =>{
+    var reply = parser.parse(input, i);
+    return {...reply,expect:_expected};
+  });
+};
   
-  
-  const map =  <T,U>(mapFn:(value:T)=>U) => (parser:Parser<T>):Parser<U> =>{
-    return makeParser((input, i, ok) =>{
-      const result= parser.parse(input,i);
-      if(isFail(result)) return result;
-      return ok(result.index,mapFn(result.value));
-    });
-  
-  }
+type MapOperator = {
+  <T extends ParserLike<unknown>,U>(mapFn:(value:ParserValue<T>)=>U):(parserLike:T) =>Parser<U>;
+  <L,U>(mapFn:(value:L)=>U):(parserLike:ParserLike<L>) =>Parser<U>;
+}
+const map:MapOperator =  (mapFn:(value:unknown)=>unknown) => (parserLike:ParserLike<unknown>):Parser<unknown> =>{
+  const parser = toParser(parserLike);
+  return makeParser((input, i, ok) =>{
+    const result= parser.parse(input,i);
+    if(isFail(result)) return result;
+    return ok(result.index,mapFn(result.value));
+  });
+
+}
   
   // -*- Combinators -*-
   
   
-  const seq = <
-      T extends readonly[ParserLike<unknown>,...ParserLike<unknown>[]]>
-    (...parserLikes:T)
-      :Parser<ParserValues<T>> => {
-    const unit = map(u=>[u]);
+  const seq = <T extends ParserLike<unknown>,
+      U extends readonly[...ParserLike<unknown>[]]>
+    (...parserLikes:[T,...U])=> {
     const [firstLike,...restLikes] = parserLikes;
-    const first = toParser(firstLike).pipe(unit);
+    const first = pipe(toParser(firstLike),map(u=>[u]));
     const parsers = toParsers(restLikes);
     return makeParser((input, i,ok) =>{
       const firstResult= first.parse(input,i);
@@ -162,7 +160,7 @@ const combine:Combine =
         const value = [...last.value,result.value];
         return ok(result.index,value);
       }, firstResult);
-    })as unknown as Parser<ParserValues<T>>;
+    }) as Parser<ParserValues<[T,...U]>>;
   }
   
   
@@ -240,7 +238,7 @@ const combine:Combine =
   const alt = <
     T extends ParserLike<unknown>,
     U extends readonly ParserLike<unknown>[]
-  >(firstLike:T,...parsersLike:U):Parser<ParserValue<T>|ParserValue<U[number]>> =>{
+  >(firstLike:T,...parsersLike:[...U]):Parser<ParserValue<T>|ParserValue<U[number]>> =>{
     const first = toParser(firstLike);
     const parsers = toParsers(parsersLike);
     return makeParser((input, i,_,fail)=>  {
@@ -252,7 +250,7 @@ const combine:Combine =
         const expected = last.expect.concat(result.expect);
         return fail(i,expected);
       },firstreply);
-    }) as Parser<ParserValue<T>|ParserValue<U[number]>>;
+    });
   }
   
   const peek = <T>(x:ParserLike<T>) => {

@@ -129,7 +129,7 @@ class Parser<T>{
   }
 }
 
-const isParser = <T>(x:any):x is Parser<T> =>x instanceof Parser;
+const isParser = <T>(x:unknown):x is Parser<T> =>x instanceof Parser;
 
 
 const string = (str:string)=> {

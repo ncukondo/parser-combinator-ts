@@ -18,105 +18,93 @@ import {
   pipe,
   map,
   seqToMono,
-  takeTo
+  takeTo,
 } from "../combinators";
 import { index, NL, SOL } from "../token";
 
-const join = (sep: string) => <T extends string[]>(
-  parserLike: ParserLike<T>
-) => {
-  const parser = toParser(parserLike);
-  return parser.pipe(map((arr) => arr.join(sep)));
-};
+const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
 
-const many = <T extends ParserLike<unknown>>(parserLike:T) => {
+const many = <T extends ParserLike<unknown>>(parserLike:T):Parser<ParserValue<T>[]> => {
   const parser = toParser(parserLike);
 
   return makeParser((input, i, ok) => {
-    let accum: T[] = [];
+    let accum: ParserValue<T>[] = [];
     let lastIndex = i;
 
     for (;;) {
       const result = parser.parse(input, lastIndex);
       if (isOk(result)) {
-        if (i === result.index) {
+        if (lastIndex === result.index) {
           throw new Error(
             "infinite loop detected in many() parser --- calling many() on " +
               "a parser which can accept zero characters is usually the cause"
           );
         }
         lastIndex = result.index;
-        accum = [...accum, result.value] as T[];
+        accum = [...accum, result.value];
       } else {
         return ok(lastIndex, accum);
       }
     }
-  }) as Parser<ParserValue<T>[]>;
+  });
 };
 
-interface Concat{
-  <T extends ParserLike<unknown>>(unit:T): ParserValue<T> extends unknown[]
-    ? <U extends ParserLike<unknown>>(parserLike: U) => ParserValue<U> extends unknown[] 
-      ? Parser<[...ParserValue<T>, ...ParserValue<U>]> 
-      : Parser<[...ParserValue<T>, ParserValue<U>]>
-    : <U extends ParserLike<unknown>>(parserLike: U) => ParserValue<U> extends unknown[] 
-      ? Parser<[ParserValue<T>, ...ParserValue<U>]> 
-      : Parser<[ParserValue<T>,ParserValue<U>]>;
-}
+type Concat = <T extends ParserLike<unknown>>(unit:T) =>  <U extends ParserLike<unknown>>(parserLike: U) =>
+  ParserValue<T> extends unknown[]
+    ? ParserValue<U> extends unknown[]
+      ? Parser<[...ParserValue<U>,...ParserValue<T>]> 
+      : Parser<[ParserValue<U>,...ParserValue<T>]>
+    : ParserValue<U> extends unknown[]
+      ? Parser<[...ParserValue<U>,ParserValue<T>]> 
+      : Parser<[ParserValue<U>,ParserValue<T>]>;
 //@ts-ignore
-const concat:Concat = <T extends ParserLike<unknown>>(x:T) => <U extends ParserLike<unknown>>(parserLike: U) => {
-  const parser = toParser(parserLike);
-  return seq(parser,x).map(([l,r])=>{
-    return Array.isArray(l) ? l.concat(r) : [l].concat(r as any);
-  })
-};
+const concat:Concat = <T extends ParserLike<unknown>>(x:T) => <U extends ParserLike<unknown>>(parser: U) => 
+  pipe(
+    seq(parser,x),
+    map(([l,r])=>Array.isArray(l) ? l.concat(r) : [l].concat(r as any))
+  )
+
 const plus = concat;
+const and = concat;
 
-const pick1 = <T extends object|any[],I extends keyof T>(key:I) => (
-  parser: Parser<T>
-) => {
-  return pipe(parser,map(arr => arr[key]));
-}
+const pick1 = <T extends object|any[],I extends keyof T>(key:I) => map((arr:T) => arr[key]);
 
-const sepBy1 = <T>(sepLike: ParserLike<T>) => <U extends ParserLike<unknown>>(
-  parserLike: U
+const sepBy1 = <T extends ParserLike<unknown>>(sep: T) => <U extends ParserLike<unknown>>(
+  parser: U
 ) => {
-  const sep = toParser(sepLike);
-  const parser = toParser(parserLike);
   const start = pipe(parser,map(x=>[x]));
   var pairs = pipe(
     seq(sep, parser),
     pick1(1),
     many
   );
-  return pipe(start,plus(pairs)) as Parser<ParserValue<U>[]>;
+  return pipe(start,concat(pairs));
 };
 
-const sepBy = <T>(sepLike: ParserLike<T>) => <U>(parserLike: ParserLike<U>) => {
-  const parser = toParser(parserLike);
-  return alt(parser.pipe(sepBy1(sepLike)), ok<U[]>([]));
-};
+const sepBy = <T extends ParserLike<unknown>>(sep: T) => <U extends ParserLike<unknown>>(
+  parser: U
+) => alt(pipe(parser,sepBy1(sep)), ok<ParserValue<U>[]>([]));
 
-const chain = <R, T extends ParserLike<R>, U>(
-  func: (value: ParserValue<T>) => Parser<U>
-) => (parserLike: T) => {
+type Chain = {
+  <T extends ParserLike<unknown>,U>(fn:(value:ParserValue<T>)=>Parser<U>):(parserLike:T) =>Parser<U>;
+  <L,U>(fn:(value:L)=>Parser<U>):(parserLike:ParserLike<L>) =>Parser<U>;
+}
+const chain:Chain = (
+  func: (value: unknown) => Parser<unknown>
+) => (parserLike: ParserLike<unknown>) => {
   const parser = toParser(parserLike);
   return makeParser((input, i) => {
     const result = parser.parse(input, i);
     if (isFail(result)) return result;
-    return func(result.value as ParserValue<T>).parse(input, result.index);
+    return func(result.value).parse(input, result.index);
   });
 };
 
-const assert = <T>(func: (value: T) => boolean, desc = "") => (
-  parserLike: ParserLike<T>
-) => {
-  const parser = toParser(parserLike);
-  parser.pipe(chain((value) => (func(value) ? ok(value) : fail(desc))));
-};
+const assert = <T>(func: (value: T) => boolean, desc = "") => 
+  chain((value:T) => (func(value) ? ok(value) : fail(desc) as Parser<T>));
 
-const not = <T>(notParser: ParserLike<T>, desc = "") => <U>(
-  parserLike: ParserLike<U>
+const not = <T extends ParserLike<unknown>>(notParser: T, desc = "") => <U extends ParserLike<unknown>>(
+  parserLike: U
 ) => {
   const parser = toParser(parserLike);
   const _notParser = toParser(notParser);
@@ -129,52 +117,36 @@ const not = <T>(notParser: ParserLike<T>, desc = "") => <U>(
   });
 };
 
-const fallback = <T>(result: T) => <U>(parserLike: ParserLike<U>) => {
-  const parser = toParser(parserLike);
-  return alt(parser, ok(result));
-};
+const fallback = <T>(result: T) => <U extends ParserLike<unknown>>(parser: U) => alt(parser, ok(result));
 
-const wrap = <L, R>(leftLike: ParserLike<L>, rightLike?: ParserLike<R>) => <U>(
-  parserLike: ParserLike<U>
-) => {
-  const left = toParser(leftLike);
-  const right = rightLike ? toParser(rightLike) : left;
-  const parser = toParser(parserLike);
-  return pipe(
-    seq(left, parser, right),
+const wrap = <L extends ParserLike<unknown>, R extends ParserLike<unknown>>(left: L, right?: R) => <U extends ParserLike<unknown>>(
+  parser: U
+) => pipe(
+    seq(left, parser, right ?? left),
     pick1(1)
   );
-};
 
-const trim = <L, R>(leftLike: ParserLike<L>, rightLike?: ParserLike<R>) => <U>(
-  parserLike: ParserLike<U>
-) => {
-  return wrap(leftLike, rightLike)(parserLike);
-};
+const trim = wrap;
 
-const or = <T>(altLike: ParserLike<T>) => <U>(parserLike: ParserLike<U>) => {
-  const altParser = toParser(altLike);
-  const parser = toParser(parserLike);
-  return alt(parser, altParser);
-};
+const or = <T extends ParserLike<unknown>>(altParser: T) => <U extends ParserLike<unknown>>(parser: U) => alt(parser, altParser);
 
-function times<U>(count: number): (parserLike: ParserLike<U>) => Parser<U[]>;
-function times<U>(
+function times(count: number): <U extends ParserLike<unknown>>(parserLike: U) => Parser<ParserValue<U>[]>;
+function times(
   min: number,
   max: number
-): (parserLike: ParserLike<U>) => Parser<U[]>;
-function times<U>(
+): <U extends ParserLike<unknown>>(parserLike: U) => Parser<ParserValue<U>[]>;
+function times<U extends ParserLike<unknown>>(
   c1: number,
   c2?: number
-): (parserLike: ParserLike<U>) => Parser<U[]> {
-  return (parserLike: ParserLike<U>) => {
-    const parser = toParser(parserLike);
+): (parserLike: U) => Parser<ParserValue<U>[]> {
+  return (parserLike: U) => {
+    const parser = toParser(parserLike) as Parser<ParserValue<U>>;
     const max = c2 !== undefined ? c2 : c1;
     const min = c1;
     return makeParser((input, i, ok, fail) => {
       let pos = i;
       let currentReply = parser.parse(input, pos);
-      let accum: U[] = isOk(currentReply) ? [currentReply.value] : [];
+      let accum: ParserValue<U>[] = isOk(currentReply) ? [currentReply.value] : [];
       let count = 0;
       while (count < max && isOk(currentReply)) {
         currentReply = parser.parse(input, currentReply.index);
@@ -193,19 +165,12 @@ function times<U>(
   };
 }
 
-const atMost = (n: number) => <U>(parserLike: ParserLike<U>) => {
-  return pipe(toParser(parserLike), times(0, n));
-};
+const atMost = (n: number) => times(0, n);
 
-const atLeast = (n: number) => <U>(parserLike: ParserLike<U>) => {
-  const parser = toParser(parserLike);
-  return seq(pipe(parser, times(n)), pipe(parser, many)).pipe(
-    map(([first, rest]) => first.concat(rest))
-  );
-};
+const atLeast = (n: number) => <U extends ParserLike<unknown>>(parser: U) => pipe(parser, times(n), plus(pipe(parser, many)));
 
-const premap = (fn: (input: string) => string) => <U>(
-  parserLike: ParserLike<U>
+const premap = (fn: (input: string) => string) => <U extends ParserLike<unknown>>(
+  parserLike: U
 ) => {
   const parser = toParser(parserLike);
   return makeParser((input, i) => {
@@ -217,35 +182,34 @@ const premap = (fn: (input: string) => string) => <U>(
   });
 };
 
-const skip = <T>(nextLike: ParserLike<T>) => <U>(parserLike: ParserLike<U>) => {
-  const parser = toParser(parserLike);
-  const next = toParser(nextLike);
-  return pipe(
+const skip = <T extends ParserLike<unknown>>(next: T) => <U extends ParserLike<unknown>>(parser: U) => 
+  pipe(
     seq(parser, next),
     map(([parser]) => parser)
   );
-};
 
-const mark = <U>(parserLike: ParserLike<U>): Parser<Mark<U>> => {
-  const parser = toParser(parserLike);
-  return pipe(
+const then = <T extends ParserLike<unknown>>(next: T) => <U extends ParserLike<unknown>>(parser: U) => 
+  pipe(
+    seq(parser, next),
+    map(([next]) => next)
+  );
+
+
+const mark = <U extends ParserLike<unknown>>(parser: U): Parser<Mark<ParserValue<U>>> => 
+  pipe(
     seq(index, parser, index),
     map(([start, value, end]) => ({ start, value, end }))
   );
-};
 
-const node = <Name extends string>(name: Name) => <U>(
-  parserLike: ParserLike<U>
-): Parser<Node<U,Name>> => {
-  const parser = toParser(parserLike);
-  return pipe(
+const node = <Name extends string>(name: Name) => <U extends ParserLike<unknown>>(
+  parser: U
+): Parser<Node<ParserValue<U>,Name>> => pipe(
     seq(index, parser, index),
     map(([start, value, end]) => ({ name, start, value, end }))
   );
-};
 
-const notFollowedBy = <T>(notParser: ParserLike<T>) => <U>(
-  parserLike: ParserLike<U>
+const notFollowedBy = (notParser: ParserLike<unknown>) => <U extends ParserLike<unknown>>(
+  parserLike: U
 ) => {
   const parser = toParser(parserLike);
   const _notParser = toParser(notParser);
@@ -257,8 +221,8 @@ const notFollowedBy = <T>(notParser: ParserLike<T>) => <U>(
   });
 };
 
-const followedBy = <T>(followParserLike: ParserLike<T>) => <U>(
-  parserLike: ParserLike<U>
+const followedBy = (followParserLike: ParserLike<unknown>) => <U extends ParserLike<unknown>>(
+  parserLike: U
 ) => {
   const parser = toParser(parserLike);
   const followParser = toParser(followParserLike);
@@ -272,7 +236,7 @@ const followedBy = <T>(followParserLike: ParserLike<T>) => <U>(
   });
 };
 
-const toInnerParser = <T>(innerParser: Parser<T>) => (
+const toInnerParser = <T extends Parser<unknown>>(innerParser: T) => (
     outerParser: Parser<string>
   ) => {
   return makeParser((input, i) => {
@@ -339,5 +303,7 @@ export {
   withRawText,
   concat,
   plus,
+  and,
+  then,
   pick1
 };
