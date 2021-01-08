@@ -253,6 +253,17 @@ const followedBy = (followParserLike: ParserLike<unknown>) => <U extends ParserL
   });
 };
 
+const tap = <T extends ParserLike<unknown>>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) => pipe(
+  parser,
+  map(v=>{tapFn(v); return v})
+);
+
+const of = <U>(value:U)=> <T extends ParserLike<unknown>>(parser:T) => pipe(
+  parser,
+  map(v=>value)
+);
+  
+
 const toInnerParser = <T extends ParserLike<unknown>>(innerParser: T) => <U extends ParserLike<string>>(
     outerParser: U
   ) => {
@@ -325,5 +336,7 @@ export {
   then,
   pick1,
   flat,
+  tap,
+  of,
   flatDeep
 };
