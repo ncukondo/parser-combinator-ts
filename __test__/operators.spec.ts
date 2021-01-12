@@ -1,5 +1,5 @@
-import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev } from "../src/index";
-import {toInnerParser} from "../src/operators";
+import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe } from "../src/index";
+import {remap, toInnerParser} from "../src/operators";
 
 describe('operators',()=>{
   test('toInnerparser',()=>{
@@ -15,6 +15,18 @@ describe('operators',()=>{
     expect(aLine.tryParse(text)).toBe("line1line2line3");
     const parser = aLine.pipe(toInnerParser(takeTo("2")))
     expect(parser.tryParse(text)).toBe("line1line");
+  });
+
+  test('remap',()=>{
+    const o1 = {key1:"tokey1", key2:"tokey2"} as const;
+    const p1 = seqObj("bbb",["tokey1","aaa"] as const);
+    const remapTest = pipe(p1,remap({key1:"tokey1", key2:"tokey2"} as const))
+    const remapTest2 = pipe(seq("aaa","bbbb"),remap({key1:1, key2:0} as const))
+    const remapTest3 = pipe(seq("aaa","bbbb"),remap([1, 0] as const));
+    expect(remapTest.tryParse("bbbaaa")).toEqual({key1:"aaa",key2:"tokey2"});
+
+    expect(remapTest2.tryParse("aaabbbb")).toEqual({key1:"bbbb",key2:"aaa"});
+    expect(remapTest3.tryParse("aaabbbb")).toEqual(["bbbb","aaa"]);
   })
 
 })

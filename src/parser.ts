@@ -132,13 +132,13 @@ class Parser<T>{
 const isParser = <T>(x:unknown):x is Parser<T> =>x instanceof Parser;
 
 
-const string = (str:string)=> {
+const string = <T extends string>(str:T)=> {
   const expected = "'" + str + "'";
   return makeParser((input, i)=>  {
     var j = i + str.length;
     var head = input.slice(i, j);
     if (head === str) {
-      return makeOk(j, head);
+      return makeOk(j, head) as OkResult<T>;
     } else {
       return makeFail(i, expected);
     }

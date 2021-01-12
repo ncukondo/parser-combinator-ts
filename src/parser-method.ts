@@ -20,41 +20,41 @@ declare module './parser' {
     tap:(tapFn:(v:T)=>any)=>Parser<T>;
     desc:(expected:string|string[]) => this;
     join:(sep?:string) => T extends string[] ? Parser<string> : never;
-    concat<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
+    concat<U extends ParserLike>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
       : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
-    plus<U extends ParserLike<unknown>>(unit:U): ParserValue<U> extends unknown[]
+    plus<U extends ParserLike>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
       : T extends unknown[] ? Parser<[...T, ParserValue<U>]> :  Parser<[T,ParserValue<U>]>;
     flatDeep(): T extends [...infer R] ? Parser<DeepFlattened<T>[]> : Parser<T>;
     flat(): T extends readonly any[] ? Parser<Flatten<T>> : Parser<T>;
     pick1:<I extends keyof T>(key:I) => T extends object|any[] ?  Parser<T[I]>  : never;
-    sepBy:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
-    sepBy1:<U>(sepLike:ParserLike<U>) => Parser<T[]>;
+    sepBy:(sepLike:ParserLike) => Parser<T[]>;
+    sepBy1:(sepLike:ParserLike) => Parser<T[]>;
     many:() => Parser<T[]>;
     chain:<U>(chainFn:(v:T)=>Parser<U>) => Parser<U>;
     assert:(checkFn:(v:T)=>boolean) => this;
-    not:<U>(notParser:ParserLike<U>) => Parser<T>;
+    not:(notParser:ParserLike) => Parser<T>;
     fallback:<U>(fallbackResult:U) => Parser<T|U>;
-    wrap:<L,R>(leftLike:ParserLike<L>, rightLike?:ParserLike<R>)=>Parser<T>;
+    wrap:(leftLike:ParserLike, rightLike?:ParserLike)=>Parser<T>;
     trim():Parser<T>;
-    trim<Q>(quoteLike:ParserLike<Q>):Parser<T>;
-    trim<L,R>(leftLike:ParserLike<L>, rightLike:ParserLike<R>):Parser<T>;
-    trimL:<L>(leftLike?:ParserLike<L>)=>Parser<T>;
-    trimR:<R>(rightLike?:ParserLike<R>)=>Parser<T>;
-    or:<U>(altLike:ParserLike<U>)=>Parser<T|U>;
+    trim(quoteLike:ParserLike):Parser<T>;
+    trim(leftLike:ParserLike, rightLike:ParserLike):Parser<T>;
+    trimL:(leftLike?:ParserLike)=>Parser<T>;
+    trimR:(rightLike?:ParserLike)=>Parser<T>;
+    or:<U extends ParserLike>(altLike:U)=>Parser<T|ParserValue<U>>;
     times(min:number, max:number):Parser<T[]>; 
     times(count:number):Parser<T[]>; 
     atLeast:(count:number) =>Parser<T[]>; 
     atMost:(count:number) =>Parser<T[]>; 
     premap:(fn:(input:string)=>string)=>Parser<T>
-    skip:<U>(skip:ParserLike<U>) => Parser<T>;
-    then:<U extends ParserLike<unknown>>(parser:U) => Parser<ParserValue<U>>;
+    skip:(skip:ParserLike) => Parser<T>;
+    then:<U extends ParserLike>(parser:U) => Parser<ParserValue<U>>;
     mark:()=>Parser<Mark<T>>;
     of:<U>(value:U)=>Parser<U>;
     node:<NAME extends string>(nodeName:NAME)=>Parser<Node<T,NAME>>;
-    notFollowedBy:<U>(notParser:ParserLike<U>) => Parser<T>;
-    followedBy:<U>(followParser:ParserLike<U>) => Parser<T>;
+    notFollowedBy:(notParser:ParserLike) => Parser<T>;
+    followedBy:(followParser:ParserLike) => Parser<T>;
     withRawText:() => Parser<{value: T;rawText: string;}>
     label:<U extends string>(name:U) => readonly [U,Parser<T>];
   }
@@ -118,11 +118,11 @@ _.pick1 = function<T extends object|any[],I extends number|string|symbol>
 };
 
 
-_.sepBy = function<T,U>(this:Parser<T>,sepLike:ParserLike<U>){
+_.sepBy = function<T>(this:Parser<T>,sepLike:ParserLike){
   return alt(this.sepBy1(sepLike),ok<T[]>([]));
 }
 
-_.sepBy1 = function<T,U>(this:Parser<T>,sepLike:ParserLike<U>){
+_.sepBy1 = function<T>(this:Parser<T>,sepLike:ParserLike){
   const sep = toParser(sepLike);
   //@ts-ignore
   const pairs = seqToMono(sep,[this]).many();
@@ -167,7 +167,7 @@ _.assert = function<T>(this:Parser<T>,checkFn:(v:T)=>boolean, desc="") {
   return this.chain(value=>checkFn(value) ? ok(value) : fail(desc))
 }
 
-_.not = function<T,U>(this:Parser<T>,notParser:ParserLike<U>,desc=""){
+_.not = function<T>(this:Parser<T>,notParser:ParserLike,desc=""){
   const _notParser = toParser(notParser);
   return makeParser((input, i,_,fail) =>{
     const notReply = _notParser.parse(input, i);
@@ -183,32 +183,32 @@ _.fallback = function<T,U>(this:Parser<T>,fallbackResult:U){
 };
 
 
-_.wrap = function<T,L,R>(this:Parser<T>,leftLike:ParserLike<L>, rightLike?:ParserLike<R>){
+_.wrap = function<T>(this:Parser<T>,leftLike:ParserLike, rightLike?:ParserLike){
   const left = toParser(leftLike);
   const right = rightLike ? toParser(rightLike) : left;
   const result = seqToMono(left,[this],right);
   return result;
 };
 
-_.trim = function<T,L,R>(this:Parser<T>,leftLike?:ParserLike<L>, rightLike?:ParserLike<R>){
+_.trim = function<T>(this:Parser<T>,leftLike?:ParserLike, rightLike?:ParserLike){
   const left = leftLike ?? /[ \n\r\t]*/m;
   const right = rightLike ?? left;
   return this.wrap(left,rightLike);
 };
 
-_.trimL = function<T,L>(this:Parser<T>,leftLike?:ParserLike<L>){
+_.trimL = function<T>(this:Parser<T>,leftLike?:ParserLike){
   const left = leftLike ?? /[ \n\r\t]*/;
   return seqToMono(toParser(left),[this]);
 };
 
-_.trimR = function<T,R>(this:Parser<T>,rightLike?:ParserLike<R>){
+_.trimR = function<T>(this:Parser<T>,rightLike?:ParserLike){
   const right = rightLike ?? /[ \n\r\t]*/;
   return seqToMono([this],toParser(right));
 };
 
 
 
-_.or = function<T,U>(this:Parser<T>,altLike:ParserLike<U>){
+_.or = function<T,U extends ParserLike>(this:Parser<T>,altLike:U){
   const altParser = toParser(altLike);
   return alt(this, altParser);
 };
@@ -256,12 +256,12 @@ _.premap = function<T>(this:Parser<T>,fn:(input:string)=>string) {
   });
 };
 
-_.skip = function<T,U>(this:Parser<T>,nextLike:ParserLike<U>){
+_.skip = function<T>(this:Parser<T>,nextLike:ParserLike){
   const next = toParser(nextLike);
   return seqToMono([this], next);
 };
 
-_.then = function<T,U extends ParserLike<unknown>>(this:Parser<T>,nextLike:U){
+_.then = function<T,U extends ParserLike>(this:Parser<T>,nextLike:U){
   const next = toParser(nextLike);
   return seqToMono(this, [next]);
 };
@@ -294,7 +294,7 @@ _.node = function<T,NAME extends string>(this:Parser<T>,name:NAME):Parser<Node<T
     .map(([start, value, end]) =>({start,value,end,name}));
 };
 
-_.notFollowedBy = function<T,U>(this:Parser<T>,notParser:ParserLike<U>){
+_.notFollowedBy = function<T>(this:Parser<T>,notParser:ParserLike){
   const _notParser = toParser(notParser);
   const self = this;
   return makeParser(function(input, i,ok,fail) {
@@ -307,7 +307,7 @@ _.notFollowedBy = function<T,U>(this:Parser<T>,notParser:ParserLike<U>){
   });
 }
 
-_.followedBy = function<T,U>(this:Parser<T>,followParserLike:ParserLike<U>){
+_.followedBy = function<T>(this:Parser<T>,followParserLike:ParserLike){
   const parser = this;
   const followParser = toParser(followParserLike);
   return makeParser(function(input, i,ok,fail) {
