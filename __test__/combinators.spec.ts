@@ -1,5 +1,12 @@
-import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev } from "../src/index";
-import {toInnerParser} from "../src/operators";
+import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, Parser } from "../src/index";
+
+describe('combinators',()=>{
+  test('seqObj',()=>{
+    const seqTest = seqObj(["aaa","aaa"] as const, ["bbb",string("111").map(Number)] as const,"ccc");
+    expect(seqTest.tryParse("aaa111ccc")).toEqual({aaa:"aaa",bbb:111});
+  })
+
+})
 
 describe('operators',()=>{
   test('prev',()=>{

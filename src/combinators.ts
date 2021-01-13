@@ -4,7 +4,6 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   
 type Lazy<T> = ()=>Parser<T>;
 type ParserLike = string | RegExp | Parser<unknown> | Lazy<unknown>;
-//type ParserLike<T> = T extends string ? string | RegExp | Parser<T> | Lazy<T> : Parser<T> | Lazy<T>;
 type ParserValue<T>
   = T extends ParserLike
     ? T extends string
@@ -33,10 +32,6 @@ export type ParserContainer<T> = {
   };
 export type Length<T extends readonly any[]> = T['length']
 export type Tail<T extends readonly any[]> = Length<T> extends 0 ? [] : (((...b: T) => void) extends (a:any, ...b: infer I) => void ? I : [])
-export type Labelable = (readonly [string,ParserLike])|ParserLike;
-export type LabelableToLabeleds<T extends readonly Labelable[]> 
-  = {[P in keyof T]:T[P] extends readonly [infer R,ParserLike]
-      ?[R extends string?R:never,ParserValue<T[P][1]>]:never}[number]
 export type Markable<T> = (readonly [ParserLike])|ParserLike;
 export type MarkableToMono<T extends readonly Markable<any>[]> = 
   NotUnion<
@@ -47,13 +42,20 @@ type NotUnion<T, Org=T> =T extends any
     ? Org
     : never
   : never;
-export type TupleToObject<T extends [string, any]> = {
-    [K in T[0]]: Extract<T, [K, any]>[1]
-}
-export type LabelableToObj<T extends readonly Labelable[]> =
-  TupleToObject<LabelableToLabeleds<T>>;
-          
 
+  export type Labelable = (readonly [string,ParserLike])|ParserLike;
+type LabelableToObj<T extends readonly Labelable[],Obj={}> =
+T extends []
+? Obj
+: T extends [readonly [infer Key, infer Value],...infer Rest] 
+  ? Key extends string
+    ? Value extends ParserLike
+      ? Rest extends readonly Labelable[]
+        ? LabelableToObj<[...Rest],Obj&{[K in Key]:ParserValue<Value>}>
+        : Obj&{[K in Key]:ParserValue<Value>}
+      : Value
+    : Key
+  : Obj;
 
 const isString = (x:any):x is string => typeof x === "string";
 const isFunction = (x:any):x is Function => typeof x ==="function";
@@ -146,14 +148,6 @@ const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>)=>
   });
 
 }
-const mapTest = map((n:string)=>[n]);
-const mepTestTest = pipe(string("aaa"),mapTest);
-const mepTestTest2 = mapTest(string("aaa"));
-const mapTest2 = pipe("aaaa",map((n)=>[n]))
-const mapTest5 = pipe(/ +/,map((n)=>[n]))
-const mapTest4 = pipe(string("aaaa"),map((n)=>[n]))
-const fnTest = <T>(n:T)=>[n];
-const mapTest3 = pipe("aaaa",map(fnTest))
   
   // -*- Combinators -*-
   

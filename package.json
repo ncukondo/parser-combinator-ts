@@ -1,6 +1,6 @@
 {
   "name": "@ncukondo/parser-combinator-ts",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "description": "Parsimmon like parser using Typescript",
   "main": "./index.js",
   "module": "./esm/index.js",

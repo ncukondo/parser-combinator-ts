@@ -1,4 +1,4 @@
-import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe } from "../src/index";
+import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser } from "../src/index";
 import {remap, toInnerParser} from "../src/operators";
 
 describe('operators',()=>{
@@ -17,6 +17,14 @@ describe('operators',()=>{
     expect(parser.tryParse(text)).toBe("line1line");
   });
 
+  test('map',()=>{
+    const map2:<V,R>(fn:(v:V)=>R) => (parser:Parser<V>|(()=>Parser<V>)|(V extends string ? V:never))=>Parser<R> = map; 
+    const unit = map2(<T>(v:T)=>[v]);
+    const mapTest = pipe(string("aaa"),unit);
+    const mapTest2 = pipe("aaa" as const,map2((n)=>[n]))
+    expect(mapTest.tryParse("aaa")).toEqual(["aaa"]);
+    expect(mapTest2.tryParse("aaa")).toEqual(["aaa"]);
+  })
   test('remap',()=>{
     const o1 = {key1:"tokey1", key2:"tokey2"} as const;
     const p1 = seqObj("bbb",["tokey1","aaa"] as const);
