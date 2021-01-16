@@ -40,7 +40,6 @@ export type Tree<T,U extends string,I extends string> = {
   value:Node<T,I>|Tree<T,U,I>[]|(Tree<T,U,I>|Node<T,I>)[];
 }
   
-
 const isOk = <T>(x:ParseResult<T>):x is OkResult<T> =>
   x.status;
 const isFail = <T>(x:ParseResult<T>):x is FailResult =>
@@ -131,18 +130,15 @@ class Parser<T>{
 
 const isParser = <T>(x:unknown):x is Parser<T> =>x instanceof Parser;
 
-
 const string = <T extends string>(str:T)=> {
   const expected = "'" + str + "'";
   return makeParser((input, i)=>  {
-    var j = i + str.length;
-    var head = input.slice(i, j);
-    if (head === str) {
-      return makeOk(j, head) as OkResult<T>;
-    } else {
-      return makeFail(i, expected);
-    }
-  });
+    const end = i + str.length;
+    const target = input.slice(i, end);
+    return target === str
+      ? makeOk(end, target) as OkResult<T>
+      : makeFail(i, expected)
+  })
 }
 
 const regexp = (re:RegExp, group=0) =>{
@@ -164,11 +160,7 @@ const regexp = (re:RegExp, group=0) =>{
   });
 }
 
-const ok = <T>(value:T) => {
-  return makeParser((input, i)=>  {
-    return makeOk(i, value);
-  });
-}
+const ok = <T>(value:T) => makeParser((input, i)=>  makeOk(i, value));
 
 const fail = (expected:string|string[]) =>{
   return makeParser((input, i)=>  {

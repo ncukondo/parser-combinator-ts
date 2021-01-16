@@ -1,61 +1,54 @@
-import  {regexp,string,makeParser,makeOk,makeFail,offsetToPosition} from './parser';
+import  {regexp,string,makeParser,offsetToPosition} from './parser';
 import  {alt,desc} from './combinators';
+import  {pipe} from './operators';
     
 
 const testChar = (testFn:(chars:string)=>boolean) => {
-  return makeParser((input, i)=> {
+  return makeParser((input, i,ok,fail)=> {
     const char = input.charAt(i);
     if (i < input.length && testFn(char)) {
-      return makeOk(i + 1, char);
+      return ok(i + 1, char);
     } else {
-      return makeFail(i, "a character matching " + testFn.toString());
+      return fail(i, "a character matching " + testFn.toString());
     }
   });
 }
 
-const rangeChar = (begin:string, end:string) => {
-  return testChar(function(ch) {
-    return begin <= ch && ch <= end;
-  }).pipe(desc(begin + "-" + end));
-}
+const rangeChar = (begin:string, end:string) => 
+  pipe(
+    testChar((ch) =>  begin <= ch && ch <= end),
+    desc(begin + "-" + end)
+  )
 
 
 const oneOf = (str:string) =>{
-  const expected = str.split("");
-  for (var idx = 0; idx < expected.length; idx++) {
-    expected[idx] = "'" + expected[idx] + "'";
-  }
-  return testChar((ch)=> str.includes(ch))
-    .pipe(desc(expected));
+  const expected = str.split("").map(v=>`'${v}'`);
+  return pipe(
+    testChar((ch)=> str.includes(ch)),
+    desc("one of '" + str + "'")
+  )
 }
 
-const noneOf = (str:string) => {
-  return testChar((ch) => {
-    return str.indexOf(ch) < 0;
-  }).pipe(desc("none of '" + str + "'"));
-}
+const noneOf = (str:string) => pipe(
+  testChar((ch) => !str.includes(ch)),
+  desc("none of '" + str + "'")
+)
 
 const index = makeParser((input, i,ok) =>{
   return ok(i, offsetToPosition(input, i));
 });
 
-const any = makeParser(function(input, i,ok,fail) {
-  if (i >= input.length) {
-    return fail(i, "any character");
-  }
-  return ok(i + 1, input.charAt(i));
-});
-
-const all = makeParser((input, i,ok) =>
-  ok(input.length, input.slice(i))
+const any = makeParser((input, i,ok,fail) => i >= input.length 
+  ? fail(i, "any character")
+  : ok(i + 1, input.charAt(i))
 );
 
-const EOF = makeParser((input, i,ok,fail) =>{
-  if (i < input.length) {
-    return fail(i, "EOF");
-  }
-  return ok(i, null);
-});
+const all = makeParser((input, i,ok) => ok(input.length, input.slice(i)));
+
+const EOF = makeParser((input, i,ok,fail) =>(i < input.length) 
+  ? fail(i, "EOF")
+  : ok(i, null)
+);
 
 const SOL = makeParser((input, i,ok,fail) =>{
   if (i === 0) return ok(i, null);
@@ -63,17 +56,17 @@ const SOL = makeParser((input, i,ok,fail) =>{
   return fail(i, "start of line");
 });
 
-const digits = regexp(/[1-9][0-9]*/).pipe(desc("optional digits"));
-const letter = regexp(/[a-z]/i).pipe(desc("a letter"));
-const letters = regexp(/[a-z]+/i).pipe(desc("letters"));
-const optWhitespace = regexp(/\s*/).pipe(desc("optional whitespace"));
-const digit = regexp(/[0-9]/).pipe(desc("a digit"));
-const whitespace = regexp(/\s+/).pipe(desc("whitespace"));
+const digits = pipe(regexp(/[1-9][0-9]*/), desc("optional digits"));
+const letter = pipe(regexp(/[a-z]/i), desc("a letter"));
+const letters = pipe(regexp(/[a-z]+/i), desc("letters"));
+const optWhitespace = pipe(regexp(/\s*/), desc("optional whitespace"));
+const digit = pipe(regexp(/[0-9]/), desc("a digit"));
+const whitespace = pipe(regexp(/\s+/), desc("whitespace"));
 const cr = string("\r");
 const lf = string("\n");
-const crlf = string("\r\n").pipe(desc("CRLF"));
-const NL = alt(crlf, lf, cr).pipe(desc("newline"));
-const EOL = alt(NL, EOF).pipe(desc("end of line"));
+const crlf = pipe(string("\r\n"), desc("CRLF"));
+const NL = pipe(alt(crlf, lf, cr),desc("newline"));
+const EOL = pipe(alt(NL, EOF), desc("end of line"));
 
 export {
   EOL,SOL,EOF,digit,digits,letter,letters

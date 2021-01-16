@@ -72,11 +72,19 @@ const and = concat;
 const pick1 = <T extends object|any[],I extends keyof T>(key:I) => map((arr:T) => arr[key]);
 
 type Remap = {
-  <I extends ReadonlyArray<unknown>|Readonly<Object>>(mapTemplate:I): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
+  <K1 extends string, V1 extends string|number, I extends Readonly<{[key in K1]:V1}>>(mapTemplate:I): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
   Parser<{[K in keyof I]: I[K] extends keyof T
             ? T[I[K]]
             : I[K]}>
-  }
+  <I extends Readonly<Object>>(mapTemplate:I): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
+  Parser<{[K in keyof I]: I[K] extends keyof T
+            ? T[I[K]]
+            : I[K]}>
+  <I extends ReadonlyArray<unknown>>(mapTemplate:readonly [...I]): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
+  Parser<{[K in keyof I]: I[K] extends keyof T
+            ? T[I[K]]
+            : I[K]}>
+}
 const remap:Remap = (<O2 extends Object,T extends (readonly unknown[]|Readonly<O2>),O1 extends Object,I extends (readonly unknown[]|Readonly<O1>)>(mapTemplate:I) => map((arr:T) => 
   Array.isArray(mapTemplate)
     ? (mapTemplate as readonly any[]).map((unit)=>unit in arr ? arr[unit as keyof T] : unit)
@@ -84,7 +92,6 @@ const remap:Remap = (<O2 extends Object,T extends (readonly unknown[]|Readonly<O
         Object.entries(mapTemplate as Object).map(([key,value])=>value in arr ? [key,arr[value as keyof T]] as const : [key,value] as const)
     )
 )) as unknown as Remap;
-
 
 type DeepFlattened<T> = T extends ReadonlyArray<infer U> ?  DeepFlattened<U> : T;
 type Tail<T extends readonly unknown[]> = T extends readonly [any, ...infer U] ? U : [];
@@ -96,16 +103,16 @@ type Flatten<T extends readonly unknown[]> =
           : [T[0],...Flatten<Tail<T>>]
     }[T extends [] ? 0 : 1];
 const flatDeep =  <T extends Parser<unknown>>(parser: T) => pipe(parser,map(
-  (x:ParserValue<T>) => Array.isArray(x) ? x.flat(Infinity) : x
+  (x) => Array.isArray(x) ? x.flat(Infinity) : x
 )) as Parser<DeepFlattened<ParserValue<T>>[]>;
 const flat =  <T extends Parser<unknown>>(parser: T) => pipe(parser,map(
-  (x:ParserValue<T>) => Array.isArray(x) ? x.flat() : x
+  (x) => Array.isArray(x) ? x.flat() : x
 )) as ParserValue<T> extends any[] ? Parser<Flatten<ParserValue<T>>> : Parser<ParserValue<T>>;
 
 const sepBy1 = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
   parser: U
 ) => {
-  const start = pipe(parser,map(x=>[x]));
+  const start = pipe(toParser(parser),map(x=>[x]));
   var pairs = pipe(
     seq(sep, parser),
     pick1(1),
@@ -242,6 +249,11 @@ const node = <Name extends string>(name: Name) => <U extends ParserLike>(
     map(([start, value, end]) => ({ name, start, value, end }))
   );
 
+const label = <Name extends string>(name: Name) => <U extends ParserLike>(
+    parser: U
+  ): readonly [Name,Parser<ParserValue<U>>] => [name,toParser(parser)];
+  
+
 const notFollowedBy = (notParser: ParserLike) => <U extends ParserLike>(
   parserLike: U
 ) => {
@@ -271,7 +283,7 @@ const followedBy = (followParserLike: ParserLike) => <U extends ParserLike>(
 };
 
 const tap = <T extends ParserLike>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) => pipe(
-  parser,
+  toParser(parser),
   map(v=>{tapFn(v); return v})
 );
 
@@ -354,5 +366,6 @@ export {
   of,
   flatDeep,
   remap,
+  label,
   pick1 as pick
 };
