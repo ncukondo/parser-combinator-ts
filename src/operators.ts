@@ -8,8 +8,7 @@ import {
   makeOk,
   Mark,
   Node,
-  string
-} from "../parser";
+} from "./parser";
 import {
   toParser,
   ParserLike,
@@ -20,9 +19,8 @@ import {
   map,
   takeTo,
   Lazy,
-  seqObj,
-} from "../combinators";
-import { index, NL, SOL } from "../token";
+} from "./combinators";
+import { index, NL, SOL } from "./token";
 
 const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
 
@@ -331,7 +329,7 @@ const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:P
 
 export {
 map,
-desc,pipe,combine} from '../combinators';
+desc,pipe,combine} from './combinators';
 export {
   join,
   sepBy,

@@ -2,8 +2,6 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "module": "CommonJs",
-    "outDir": "../dist",
-    "declaration": true,
-    "declarationMap": true,
+    "outDir": "../dist/require",
   },
 }

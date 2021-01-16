@@ -1,6 +1,5 @@
 import  {regexp,string,makeParser,offsetToPosition} from './parser';
-import  {alt,desc} from './combinators';
-import  {pipe} from './operators';
+import  {alt,desc,pipe} from './combinators';
     
 
 const testChar = (testFn:(chars:string)=>boolean) => {

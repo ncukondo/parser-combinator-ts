@@ -36,7 +36,7 @@ export default [
   // ブラウザ用設定
   {
     // エントリポイント
-    input: 'src/index.ts',
+    input: 'src/index.full.ts',
     output: [
       // minifyせずに出力する
       {
