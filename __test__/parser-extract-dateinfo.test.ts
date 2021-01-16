@@ -1,4 +1,5 @@
 import { digit, takeTo, string, seqObj, all, alt } from "../src/index";
+import { times,map,join,label,pipe,fallback } from "../src/operators";
 
 declare const test: jest.It;
 declare const expect: jest.Expect;
@@ -6,16 +7,16 @@ declare const describe: jest.Describe;
 
 
 const extractDateInfo = (filename: string) => {
-  const toDate = (i: { year: number; date: number; month: number }) =>
-    new Date(i.year, i.month - 1, i.date);
-  const d = (c: number) => digit.times(c).join().map(Number);
+  const toDate = map((i: { year: number; date: number; month: number }) =>
+    new Date(i.year, i.month - 1, i.date));
+  const d = (c: number) => pipe(digit,times(c),join(),map(Number));
   const [dddd, dd] = [d(4), d(2)];
   const [year, month, date] = [
-    dddd.label("year"),
-    dd.label("month"),
-    dd.label("date")
+    pipe(dddd,label("year")),
+    pipe(dd,label("month")),
+    pipe(dd,label("date"))
   ];
-  const name = takeTo("(").label("name");
+  const name = pipe(takeTo("("),label("name"));
 
   const _ = string("_");
   const to = string("-");
@@ -23,10 +24,10 @@ const extractDateInfo = (filename: string) => {
   const d2 = seqObj(year, _, month, _, dd, to, date);
   const d3 = seqObj(year, _, dd, _, dd, to, month, _, date);
   const d4 = seqObj(dddd, _, dd, _, dd, to, year, _, month, _, date);
-  const dateInfo = alt(d4, d3, d2, d1).map(toDate).label("date");
-  const ext = all.label("ext");
+  const dateInfo = pipe(alt(d4, d3, d2, d1),toDate,label("date"));
+  const ext = pipe(all,label("ext"));
 
-  const parser = seqObj(name, "(", dateInfo, ")", ext).fallback(null);
+  const parser = pipe(seqObj(name, "(", dateInfo, ")", ext),fallback<null>(null));
   return parser.tryParse(filename);
 };
 

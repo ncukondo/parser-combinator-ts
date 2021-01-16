@@ -114,18 +114,6 @@ class Parser<T>{
     }
   };
   
-
-  pipe<A>(a: (t:this)=>A): A
-  pipe<A, B>(a: (t:this)=>A, ab: (a: A) => B): B
-  pipe<A, B, C>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C): C
-  pipe<A, B, C, D>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D
-  pipe<A, B, C, D, E>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: D) => E): E
-  pipe<U extends Function[]>
-      (...funcs:U){
-    return (funcs as Function[]).reduce((acc,func)=>{
-      return func(acc);
-    },this);
-  }
 }
 
 const isParser = <T>(x:unknown):x is Parser<T> =>x instanceof Parser;

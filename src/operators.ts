@@ -156,7 +156,7 @@ const not = <T extends ParserLike>(notParser: T, desc = "") => <U extends Parser
   });
 };
 
-const fallback = <T>(result: T) => <U extends ParserLike>(parser: U) => alt(parser, ok(result));
+const fallback = <T>(result: T) => <U extends ParserLike>(parser: U) => alt(parser, ok(result)) as  Parser<T | ParserValue<U>>;
 
 const wrap = <L extends ParserLike, R extends ParserLike>(left: L, right?: R) => <U extends ParserLike>(
   parser: U

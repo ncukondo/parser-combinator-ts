@@ -57,7 +57,13 @@ declare module './parser' {
     followedBy:(followParser:ParserLike) => Parser<T>;
     withRawText:() => Parser<{value: T;rawText: string;}>
     label:<U extends string>(name:U) => readonly [U,Parser<T>];
-  }
+
+    pipe<A>(a: (t:this)=>A): A
+    pipe<A, B>(a: (t:this)=>A, ab: (a: A) => B): B
+    pipe<A, B, C>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C): C
+    pipe<A, B, C, D>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D
+    pipe<A, B, C, D, E>(a: (t:this)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: D) => E): E
+    }
 }
 const _ = Parser.prototype;
   
@@ -68,6 +74,13 @@ _.map = function<T,U>(this:Parser<T>,mapFn:(value:T)=>U) {
     return ok(result.index,mapFn(result.value));
   });
 }
+
+_.pipe = function<T,U extends Function[]>(this:Parser<T>,...funcs:U){
+return (funcs as Function[]).reduce((acc,func)=>{
+return func(acc);
+},this);
+}
+
 
 _.tap = function<T>(this:Parser<T>,tapFn:(value:T)=>any) {
   return makeParser((input, i, ok) =>{

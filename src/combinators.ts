@@ -206,7 +206,8 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
     const [first,...parsers] = [...parserLikeOrLabeled]
       .map(v=>isArray(v) ? v[1] : v)
       .map(v=>toParser(v as ParserLike));
-    return seq(first,...parsers).pipe(
+    return pipe(
+      seq(first,...parsers),
       map(v=>{
         const entries = keys.map(([key,i])=>[key,v[i]])
         return Object.fromEntries(entries);        

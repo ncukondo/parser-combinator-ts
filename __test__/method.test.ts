@@ -1,4 +1,5 @@
 import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF } from "../src/index";
+import "../src/parser-method";
 
 describe('basic methods',()=>{
   test('withRawText',()=>{

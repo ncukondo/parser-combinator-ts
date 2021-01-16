@@ -1,5 +1,5 @@
 import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser } from "../src/index";
-import {remap, toInnerParser,label} from "../src/operators";
+import {remap, toInnerParser,label,then,skip,plus,many,join} from "../src/operators";
 
 describe('operators',()=>{
   test('toInnerparser',()=>{
@@ -9,11 +9,11 @@ describe('operators',()=>{
     line4`;
     const _ = regexp(/[ \t]*/)
     
-    const basicLine = takeTo("\n","\\\n").skip(alt("\n","\\\n"));
-    const continueLine = seq(prev("\\\n"), _).then(basicLine);
-    const aLine = basicLine.plus(continueLine.many()).join();
+    const basicLine = pipe(takeTo("\n","\\\n"),skip(alt("\n","\\\n")));
+    const continueLine = pipe(seq(prev("\\\n"), _),then(basicLine));
+    const aLine = pipe(basicLine,plus(pipe(continueLine,many)),join());
     expect(aLine.tryParse(text)).toBe("line1line2line3");
-    const parser = aLine.pipe(toInnerParser(takeTo("2")))
+    const parser = pipe(aLine,toInnerParser(takeTo("2")))
     expect(parser.tryParse(text)).toBe("line1line");
   });
 
