@@ -15,13 +15,13 @@ const error180 = `
   3 | This error overlay is powered by react-error-overlay used in create-react-app
     |               ^
 
-Expected one of the following: 
+Expected:
 input, test
 `;
 
 describe("formatError", () => {
   test("formatError of 180", () => {
-    const res = formatError(testText, 180, ["input", "test"]);
+    const res = formatError(testText, 180, "input, test");
     expect(res).toBe(error180);
   });
 });

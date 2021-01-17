@@ -85,11 +85,8 @@ interface Pipe {
   <A,B,C,D,E,F,G,H,I>(a:A,ab:PipeFn<A,B>,bc:PipeFn<B,C>,cd:PipeFn<C,D>,de:PipeFn<D,E>,ef:PipeFn<E,F>,fg:PipeFn<F,G>,gh:PipeFn<G,H>,hi:PipeFn<H,I>):I;
 }
 const pipe:Pipe = 
-  (seed:any,...fns:[...PipeFn<any,any>[]]) =>{
-    return fns.reduce((acc,func)=>{
-      return func(acc);
-    },seed);
-  }
+  (seed:any,...fns:[...PipeFn<any,any>[]]) => fns.reduce((acc,func)=> func(acc), seed);
+
 interface Combine {
   <A,B>(ab:PipeFn<A,B>):B;
   <A,B,C>(ab:PipeFn<A,B>,bc:PipeFn<B,C>):PipeFn<A,C>;
@@ -106,7 +103,6 @@ const combine:Combine =
       return func(acc);
     },seed);
   }
-
   
 const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
   return makeParser((input,index)=>{
@@ -123,13 +119,9 @@ const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
 }
 const toParsers = <T extends readonly ParserLike[]>(xs:readonly [...T]):Parser<ParserValue<T[number]>>[] => xs.map(x=> toParser(x));
   
-const desc = (expected:string|string[]) => <T>(parser:Parser<T>) =>{
-  const _expected = isArray(expected) ? expected : [expected];
-  return makeParser((input, i,ok,fail) =>{
-    const reply = parser.parse(input, i);
-    return {...reply,expect:_expected};
-  });
-};
+const desc = (expect:string) => <T>(parser:Parser<T>) => makeParser((input, i,ok,fail) =>
+    ({...parser.parse(input, i),expect})
+);
 
 type ExtendParserLike<P> =
   P extends string
@@ -163,7 +155,7 @@ const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>)=>
 const seq = <T extends readonly [ParserLike,...ParserLike[]]>
     (...parserLikes:T) => {
     const [firstu,...parsers] = toParsers(parserLikes);
-    const first = pipe(firstu,map(u=>[u]));
+    const first = pipe(firstu,map(u=>[u] as const));
     return makeParser((input, i,ok) =>{
       const firstResult= first.parse(input,i) as ParseResult<unknown[]>;
       return parsers.reduce((last,parser)=>{
@@ -181,19 +173,17 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
       T extends readonly [Markable<unknown>, ...Markable<unknown>[]]>
     (...markables:T)
       :MarkableToMono<T> => {
-    const keys = [...markables].flatMap((v,i)=>isArray(v) ? i:[]);
-    if (keys.length !== 1 ) {
+    const key = [...markables].findIndex(v=>Array.isArray(v));
+    if (key === -1 ) {
       throw new Error("seqToMono expects one marked parser, found zero or too much");
     }
-    const key = keys[0];
     const [first,...parsers] = [...markables]
       .map(v=>isArray(v) ? v[0] as ParserLike : v as ParserLike)
       .map(v=>toParser(v));
-    const result = pipe(
+    return pipe(
       seq(first,...parsers),
       map(v=>v[key])
-    ); 
-    return result as unknown as MarkableToMono<T>;
+    ) as unknown as MarkableToMono<T>;
   }
   
   
@@ -255,8 +245,8 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
         if(isOk(last)) return last;
         const result = parser.parse(input,i);
         if(isOk(result)) return result;
-        const expected = last.expect.concat(result.expect);
-        return fail(i,expected);
+        const expected = [last.expect, result.expect];
+        return fail(i,expected.join(" or "));
       },firstreply);
     });
   }

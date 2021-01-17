@@ -12,9 +12,9 @@ const extractDateInfo = (filename: string) => {
   const d = (c: number) => pipe(digit,times(c),join(),map(Number));
   const [dddd, dd] = [d(4), d(2)];
   const [year, month, date] = [
-    pipe(dddd,label("year")),
-    pipe(dd,label("month")),
-    pipe(dd,label("date"))
+    label("year",dddd),
+    label("month",dd),
+    label("date",dd)
   ];
   const name = pipe(takeTo("("),label("name"));
 

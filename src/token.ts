@@ -1,4 +1,4 @@
-import  {regexp,string,makeParser,offsetToPosition} from './parser';
+import  {string,makeParser,offsetToPosition,regexp} from './parser';
 import  {alt,desc,pipe} from './combinators';
     
 

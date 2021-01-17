@@ -247,9 +247,14 @@ const node = <Name extends string>(name: Name) => <U extends ParserLike>(
     map(([start, value, end]) => ({ name, start, value, end }))
   );
 
-const label = <Name extends string>(name: Name) => <U extends ParserLike>(
-    parser: U
-  ): readonly [Name,Parser<ParserValue<U>>] => [name,toParser(parser)];
+interface Label {
+  <Name extends string>(name: Name):<U extends ParserLike>(parser: U) => readonly [Name,Parser<ParserValue<U>>];
+  <Name extends string, U extends ParserLike>(name: Name,parser:U):readonly [Name,Parser<ParserValue<U>>];
+} 
+const label:Label = (<Name extends string,U extends ParserLike>(name: Name,parser1?:U) => 
+  parser1 
+    ? [name,toParser(parser1)] as const
+    : (parser: U) => [name,toParser(parser)] as const) as unknown as Label;
   
 
 const notFollowedBy = (notParser: ParserLike) => <U extends ParserLike>(
@@ -297,7 +302,7 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
       const textToParse = input.slice(0, i) + outerRes.value;
       const innerRes = toParser(innerParser).parse(textToParse, i);
       if(isFail(innerRes)){
-        const expect = [`${innerRes.expect.join(' or ')} in index:${innerRes.furthest} of textToParse`];
+        const expect = `${innerRes.expect} in index:${innerRes.index} of textToParse`;
         return {...innerRes,expect,furthest:i}
       }
       return innerRes;

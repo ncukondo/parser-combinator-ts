@@ -13,9 +13,9 @@ describe('basic methods',()=>{
   })
   test('many',()=>{
     expect(regexp(/./).many().withRawText().parse('123456')).toEqual({
-      "expect":  [],
+      "expect":  "",
       "index": 6,
-      "status": true,
+      "success": true,
       "value": {
         "rawText": "123456",
         "value": [

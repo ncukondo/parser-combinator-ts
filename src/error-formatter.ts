@@ -22,12 +22,7 @@ const repeat = (text:string, amount:number) => {
   return Array(amount + 1).join(text);
 }
 
-const formatExpected = (expected:string[]) =>{
-  if (expected.length === 1) {
-    return "Expected:\n" + expected[0];
-  }
-  return "Expected one of the following: \n" + expected.join(", ");
-}
+const formatExpected = (expected:string) => "Expected:\n" + expected;
 
 // Get a range of indexes including `i`-th element and `before` and `after` amount of elements from `arr`.
 const rangeFromIndexAndOffsets = (i:number, before:number, after:number, length:number) =>{
@@ -78,7 +73,7 @@ const formatGot = (input:string, index:number,option?:FormatOption) => {
     ).join("\n")
 }
 
-const formatError = (input:string, index:number,expected:string[],option?:Partial<FormatOption>) => {
+const formatError = (input:string, index:number,expected:string,option?:Partial<FormatOption>) => {
   return `
   ${repeat("-", 10)} PARSING FAILED ${repeat("-", 10)}
 

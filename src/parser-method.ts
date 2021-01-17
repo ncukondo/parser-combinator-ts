@@ -1,7 +1,7 @@
-import {Parser,makeParser,isFail,isArray,isOk,ok,fail,
+import {Parser,makeParser,isFail,isOk,ok,fail,
   makeOk,Mark,Node} from './parser'
 import  {seqToMono,toParser,seq
-  ,ParserLike,alt, ParserValue} from './combinators';
+  ,ParserLike,alt, ParserValue, pipe, desc} from './combinators';
 import  {index} from './token';
 
 type DeepFlattened<T> = T extends ReadonlyArray<infer U> ?  DeepFlattened<U> : T;
@@ -18,7 +18,7 @@ declare module './parser' {
   interface Parser<T>{
     map:<U>(mapFn:(v:T)=>U)=>Parser<U>;
     tap:(tapFn:(v:T)=>any)=>Parser<T>;
-    desc:(expected:string|string[]) => this;
+    desc:(expected:string) => this;
     join:(sep?:string) => T extends string[] ? Parser<string> : never;
     concat<U extends ParserLike>(unit:U): ParserValue<U> extends unknown[]
       ? T extends unknown[] ? Parser<[...T, ...ParserValue<U>]> : Parser<[T, ...ParserValue<U>]>
@@ -91,13 +91,7 @@ _.tap = function<T>(this:Parser<T>,tapFn:(value:T)=>any) {
   });
 }
 
-_.desc =  function<T>(this:Parser<T>,expected:string|string[]){
-  const _expected = isArray(expected) ? expected : [expected];
-  return makeParser((input, i,ok,fail) =>{
-    var reply = this.parse(input, i);
-    return {...reply,expect:_expected};
-  });
-};
+_.desc =  function<T>(this:Parser<T>,expected:string){return pipe(this,desc(expected))};
 
 _.join = function<T extends string[]>(this:Parser<T>,sep:string=""){
   return this.map(arr => arr.join(sep));
