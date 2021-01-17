@@ -155,8 +155,14 @@ const not = <T extends ParserLike>(notParser: T, desc = "") => <U extends Parser
     return parser.parse(input, i);
   });
 };
+interface Fallback{
+  (result1: undefined):<U extends ParserLike>(parser: U) => Parser<ParserValue<U>|undefined>;
+  (result2: null):<U extends ParserLike>(parser: U) => Parser<null|ParserValue<U>>;
+  <T>(result3: T):<U extends ParserLike>(parser: U) => Parser<ParserValue<U>|T>;
 
-const fallback = <T>(result: T) => <U extends ParserLike>(parser: U) => alt(parser, ok(result)) as  Parser<T | ParserValue<U>>;
+}
+
+const fallback:Fallback = <T>(result: T) => <U extends ParserLike>(parser: U) => alt(parser, ok(result)) as  Parser<ParserValue<U>|T>;
 
 const wrap = <L extends ParserLike, R extends ParserLike>(left: L, right?: R) => <U extends ParserLike>(
   parser: U

@@ -1,5 +1,5 @@
 import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, Parser } from "../src/index";
-import { then ,many,join,skip,pipe,map} from "../src/operators"
+import { then ,many,join,skip,pipe,map, fallback} from "../src/operators"
 
 describe('combinators',()=>{
   test('seqObj',()=>{
@@ -20,6 +20,10 @@ describe('operators',()=>{
     const basicLine = pipe(SOL,then(pipe(noneOf("\n"),many,join())),skip("\n"));
     const continueLine = seq(prev("\\\n"), _);
     expect(pipe(basicLine, then(continueLine)).tryParse(text)).toEqual(["\\\n","    "]);
+  })
+  test('fallback',()=>{
+    const parser = pipe(string("001"),map(Number),fallback("fail"));
+    expect(parser.tryParse("002")).toBe("fail");
   })
 
 })
