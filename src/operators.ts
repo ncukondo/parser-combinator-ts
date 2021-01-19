@@ -9,6 +9,7 @@ import {
   Mark,
   Node,
 } from "./parser";
+import type { ParseResult } from "./parser";
 import {
   toParser,
   ParserLike,
@@ -124,14 +125,12 @@ const sepBy = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
 ) => alt(pipe(parser,sepBy1(sep)), ok<ParserValue<U>[]>([]));
 
 type Chain = {
-  <PLike extends ParserLike,U>(fn:(value:ParserValue<PLike>)=>Parser<U>):(parser:PLike) =>Parser<U>;
-  <Value,ChainResult extends Parser<unknown>>(fn:(value:Value)=>ChainResult):(parser2:ParserLike) =>ChainResult;
+  <Value,U>(fn:(value:Value)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
 }
 //@ts-ignore
 const chain:Chain = (
   func: (value: unknown) => Parser<unknown>
-) => <T extends ParserLike>(parserLike: T) => {
-  const parser = toParser(parserLike);
+) => <T extends Parser<unknown>>(parser: T) => {
   return makeParser((input, i) => {
     const result = parser.parse(input, i);
     if (isFail(result)) return result;
@@ -309,7 +308,7 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
       const innerRes = toParser(innerParser).parse(textToParse, i);
       if(isFail(innerRes)){
         const expect = `${innerRes.expect} in index:${innerRes.index} of textToParse`;
-        return {...innerRes,expect,furthest:i}
+        return {...innerRes,expect,index:i}
       }
       return innerRes;
     });
@@ -325,16 +324,13 @@ interface WithRawText {
   <T>():(parser:Parser<T>)=>Parser<{value:T,rawText:string}>;
   <T,U>(fn:(text:string,value:T)=>U):(parser:Parser<T>)=>Parser<U>;
 }
-const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:Parser<T>)=>{
-  return makeParser((input, i,ok) => {
+const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:Parser<T>) =>{
+  return makeParser<U|{value:T,rawText:string}>((input, i,ok) => {
     const reply = parser.parse(input, i);
     if(isFail(reply)) return reply;
     const rawText = input.slice(i,reply.index);
     const value = reply.value;
-    if(fn){
-      ok(reply.index,fn(rawText,value))
-    }
-    return ok(reply.index,{value,rawText});
+    return ok(reply.index,fn?.(rawText,value) ?? ({value,rawText}));
   });
 }
 
