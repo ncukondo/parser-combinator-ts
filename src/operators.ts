@@ -9,7 +9,9 @@ import {
   Mark,
   Node,
 } from "./parser";
-import type { ParseResult } from "./parser";
+import type { ParseResult,  OkResult,
+  FailResult,
+} from "./parser";
 import {
   toParser,
   ParserLike,
@@ -24,6 +26,12 @@ import {
 import { index, NL, SOL } from "./token";
 
 const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
+
+const descFn = (expectFn:(prev:string)=>string) => <T>(parser:Parser<T>) => makeParser((input, i,ok,fail) =>{
+  const reply = parser.parse(input, i);
+  return {...reply,expect:expectFn(reply.expect)}
+});
+
 
 const many = <T extends ParserLike>(parserLike:T):Parser<ParserValue<T>[]> => {
   const parser = toParser(parserLike);
@@ -111,8 +119,8 @@ const flat =  <T extends Parser<unknown>>(parser: T) => pipe(parser,map(
 const sepBy1 = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
   parser: U
 ) => {
-  const start = pipe(toParser(parser),map(x=>[x]));
-  var pairs = pipe(
+  const start = pipe(toParser(parser),map(x=>[x] as const));
+  const pairs = pipe(
     seq(sep, parser),
     pick1(1),
     many
@@ -137,6 +145,27 @@ const chain:Chain = (
     return func(result.value).parse(input, result.index);
   });
 };
+
+type OnReplyInfo<T,U> = Readonly<{
+  prevIndex:number,
+  result:ParseResult<T>,
+  input:string,
+  currIndex:number,
+  makeOk:(index: number, value: U, expected?: string | undefined) => OkResult<U>,
+  makeFail: (index: number, expected: string) => FailResult
+}>;
+type OnReplyFunc<T,U> = (info:OnReplyInfo<T,U>) => ParseResult<U>;
+const onReply = <T,U>(func: OnReplyFunc<T,U>) => (parser: Parser<T>) => 
+  makeParser((input, i,makeOk,makeFail) => {
+    const result = parser.parse(input, i);
+    return func({prevIndex:i,result,input,currIndex:result.index,makeOk,makeFail});
+  }
+);
+const onOkReply = <T,U>(func: OnReplyFunc<T,U>) => 
+  onReply<T,U>((info)=>isOk(info.result) ? func(info) : info.result);
+
+const onFailReply = <T,U>(func: OnReplyFunc<T,U>) => 
+  onReply<T,U>((i)=>isOk(i.result) ? i.makeFail(i.prevIndex,i.result.expect) : func(i));
 
 const assert = <T>(func: (value: T) => boolean, desc = "") => 
   chain((value:T) => (func(value) ? ok(value) : fail(desc) as Parser<T>));
@@ -372,5 +401,9 @@ export {
   flatDeep,
   remap,
   label,
+  descFn,
+  onReply,
+  onOkReply,
+  onFailReply,
   pick1 as pick
 };
