@@ -9,21 +9,3 @@ describe('combinators',()=>{
 
 })
 
-describe('operators',()=>{
-  test('prev',()=>{
-    const text = String.raw`line1\
-    line2\
-    line3
-    line4`;
-    const _ = regexp(/[ \t]*/)
-    
-    const basicLine = pipe(SOL,then(pipe(noneOf("\n"),many,join())),skip("\n"));
-    const continueLine = seq(prev("\\\n"), _);
-    expect(pipe(basicLine, then(continueLine)).tryParse(text)).toEqual(["\\\n","    "]);
-  })
-  test('fallback',()=>{
-    const parser = pipe(string("001"),map(Number),fallback("fail"));
-    expect(parser.tryParse("002")).toBe("fail");
-  })
-
-})

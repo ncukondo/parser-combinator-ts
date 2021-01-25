@@ -126,13 +126,20 @@ const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
   return x as unknown as Parser<ParserValue<T>>;
 }
 const toParsers = <T extends readonly ParserLike[]>(xs:readonly [...T]):Parser<ParserValue<T[number]>>[] => xs.map(x=> toParser(x));
-  
-const desc = (expect:string) => <T>(parser:Parser<T>) => makeParser((input, i,ok,fail) =>
-    ({...parser.parse(input, i),expect})
-);
 
-interface ParseDetailInfo {
+type DescFn = (prev:string,i:number)=>string;
+interface Desc {
+  (expect:string):<T>(parser:Parser<T>)=>Parser<T>
+  (descFn:DescFn):<T>(parser:Parser<T>)=>Parser<T>
+}
+const desc:Desc = (x:string|DescFn) => <T>(parser:Parser<T>) => makeParser((input, i,ok,fail) => {
+  const res = parser.parse(input, i);
+  return typeof x==="function" ? {...res,expect:x(res.expect,res.index)} : {...res,expect:x};
+});
+
+interface ParseResultDetaill {
   readonly wholeText:string;
+  readonly ok:boolean;
   readonly start:number;
   readonly end:number;
   readonly expect:string;
@@ -140,21 +147,22 @@ interface ParseDetailInfo {
 }
 
 type MapOperator = {
-  <V,R>(mapFn1:(value:V,i:ParseDetailInfo)=>R):(parser:Parser<V>) => Parser<R>;
+  <V,R>(mapFn1:(value:V,i:ParseResultDetaill)=>R):(parser:Parser<V>) => Parser<R>;
 }
 //@ts-ignore
-const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>,info:ParseDetailInfo)=>U) => (parserLike:T):Parser<U> =>{
+const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>,info:ParseResultDetaill)=>U) => (parserLike:T):Parser<U> =>{
   const parser = toParser(parserLike);
   return makeParser((wholeText, start, ok) =>{
     const result= parser.parse(wholeText,start);
-    if(isFail(result)) return result;
     const info = {
       wholeText,
+      ok:result.success,
       start,
       end:result.index,
       expect:result.expect,
       parsed:()=>wholeText.substr(start,result.index-start)
     }
+    if(isFail(result)) return result;
     return ok(result.index,mapFn(result.value,info));
   });
 
@@ -165,17 +173,14 @@ const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>,in
   
 const seq = <T extends readonly [ParserLike,...ParserLike[]]>
     (...parserLikes:T) => {
-    const [firstu,...parsers] = toParsers(parserLikes);
-    const first = pipe(firstu,map(u=>[u] as const));
     return makeParser((input, i,ok) =>{
-      const firstResult= first.parse(input,i) as ParseResult<unknown[]>;
-      return parsers.reduce((last,parser)=>{
+      return toParsers(parserLikes).reduce((last,parser)=>{
         if(isFail(last)) return last;
         const result = parser.parse(input,last.index);
         if(isFail(result)) return result;
         const value = [...last.value,result.value];
         return ok(result.index,value);
-      }, firstResult);
+      }, ok(i,[]) as ParseResult<unknown[]>);
     }) as unknown as Parser<ParserValues<T>>;
   }
   
@@ -249,16 +254,15 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
   const alt = <
     T extends readonly [ParserLike,...ParserLike[]]
   >(...parsersLike:T):Parser<ParserValue<T[number]>> =>{
-    const [first,...parsers] = toParsers(parsersLike) as Parser<ParserValue<T[number]>>[];
+    const parsers = toParsers(parsersLike) as Parser<ParserValue<T[number]>>[];
     return makeParser((input, i,_,fail)=>  {
-      const firstreply = first.parse(input,i);
       return parsers.reduce((last,parser)=>{
         if(isOk(last)) return last;
         const result = parser.parse(input,i);
         if(isOk(result)) return result;
         const expected = [last.expect, result.expect];
         return fail(i,expected.join(" or "));
-      },firstreply);
+      },fail(i,"") as ParseResult<ParserValue<T[number]>>);
     });
   }
   
@@ -298,7 +302,6 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
     (text:string):Parser<string>;
     <T>(parser:Parser<T>,backTo:number):Parser<T>;
   }
-
   const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
     return makeParser<string|T>((input, i,ok,fail) =>{
       const back = typeof x==="string" ? x.length : backTo ?? 0;
@@ -314,6 +317,7 @@ export {toParser,toParsers, lazy, desc,
     map,seq,seqToMono, seqObj, createLanguage,alt,peek,
     takeWhile,takeTo,pipe,prev,combine}
 export type {
-  Lazy,ParserValue,ToParser,ParserLike
+  Lazy,ParserValue,ToParser,ParserLike,
+  ParseResultDetaill
 }
   

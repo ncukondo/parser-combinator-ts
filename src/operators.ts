@@ -22,8 +22,12 @@ import {
   map,
   takeTo,
   Lazy,
+  desc,
 } from "./combinators";
-import { index, NL, SOL } from "./token";
+import type {
+  ParseResultDetaill
+} from "./combinators";
+import { index, aLine } from "./token";
 
 const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
 
@@ -133,39 +137,31 @@ const sepBy = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
 ) => alt(pipe(parser,sepBy1(sep)), ok<ParserValue<U>[]>([]));
 
 type Chain = {
-  <Value,U>(fn:(value:Value)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U>(onOk:undefined,onFail:(i:ParseResultDetaill)=>Parser<U>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U1,U2>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U1>,onFail:(i:ParseResultDetaill)=>Parser<U2>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U1|U2>;
 }
-//@ts-ignore
 const chain:Chain = (
-  func: (value: unknown) => Parser<unknown>
+  onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
+  x?: boolean|((info: ParseResultDetaill) => Parser<unknown>),
+  backToStart=false
 ) => <T extends Parser<unknown>>(parser: T) => {
-  return makeParser((input, i) => {
-    const result = parser.parse(input, i);
-    if (isFail(result)) return result;
-    return func(result.value).parse(input, result.index);
+  return makeParser((wholeText, start) => {
+    const result = parser.parse(wholeText, start);
+    const info = {
+      wholeText,
+      ok:result.success,
+      start,
+      end:result.index,
+      expect:result.expect,
+      parsed:()=>wholeText.substr(start,result.index-start)
+    }
+    const back = x && typeof x==="function" ? backToStart : x ? x : backToStart;
+    const onFail = x && typeof x==="function" ? x : undefined;
+    if (isFail(result)) return onFail ? onFail(info).parse(wholeText, back ? result.index: start) : result;
+    return onOk ? onOk(result.value,info).parse(wholeText, back ? result.index: start) : result;
   });
 };
-
-type OnReplyInfo<T,U> = Readonly<{
-  prevIndex:number,
-  result:ParseResult<T>,
-  input:string,
-  currIndex:number,
-  makeOk:(index: number, value: U, expected?: string | undefined) => OkResult<U>,
-  makeFail: (index: number, expected: string) => FailResult
-}>;
-type OnReplyFunc<T,U> = (info:OnReplyInfo<T,U>) => ParseResult<U>;
-const onReply = <T,U>(func: OnReplyFunc<T,U>) => (parser: Parser<T>) => 
-  makeParser((input, i,makeOk,makeFail) => {
-    const result = parser.parse(input, i);
-    return func({prevIndex:i,result,input,currIndex:result.index,makeOk,makeFail});
-  }
-);
-const onOkReply = <T,U>(func: OnReplyFunc<T,U>) => 
-  onReply<T,U>((info)=>isOk(info.result) ? func(info) : info.result);
-
-const onFailReply = <T,U>(func: OnReplyFunc<T,U>) => 
-  onReply<T,U>((i)=>isOk(i.result) ? i.makeFail(i.prevIndex,i.result.expect) : func(i));
 
 const assert = <T>(func: (value: T) => boolean, desc = "") => 
   chain((value:T) => (func(value) ? ok(value) : fail(desc) as Parser<T>));
@@ -175,13 +171,11 @@ const not = <T extends ParserLike>(notParser: T, desc = "") => <U extends Parser
 ) => {
   const parser = toParser(parserLike);
   const _notParser = toParser(notParser);
-  return makeParser((input, i, _, fail) => {
-    const notReply = _notParser.parse(input, i);
-    if (isOk(notReply)) {
-      return fail(i, desc);
-    }
-    return parser.parse(input, i);
-  });
+  return pipe(_notParser,chain(
+    (_,{expect})=>fail(`not ${expect}`),
+    ()=>parser,
+    true
+  ));
 };
 interface Fallback{
   (result1: undefined):<U extends ParserLike>(parser: U) => Parser<ParserValue<U>|undefined>;
@@ -327,25 +321,20 @@ const tap = <T extends ParserLike>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) =
 const of = <U>(value:U)=> map(v=>value);
   
 
-const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|RegExp|Parser<string>|Lazy<string>>(
+const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|Parser<string>|Lazy<string>>(
     outerParser: U
-  ) => {
-  return makeParser((input, i) => {
-      const outerRes = toParser(outerParser).parse(input, i);
-      if (isFail(outerRes)) return outerRes;
-      const textToParse = input.slice(0, i) + outerRes.value;
-      const innerRes = toParser(innerParser).parse(textToParse, i);
-      if(isFail(innerRes)){
-        const expect = `${innerRes.expect} in index:${innerRes.index} of textToParse`;
-        return {...innerRes,expect,index:i}
-      }
-      return innerRes;
-    });
-};
+  ) => pipe(
+    toParser(outerParser),
+    chain((v,{start}) => pipe(
+      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, start)+v, 0)),
+      desc((expect,i)=>`${expect} in index:${i} of textToParse`)
+      )
+      ,true
+    )
+);
 
-const asWholeLine = <T extends ParserLike>(parser:T) => pipe(
-  seq(SOL,takeTo(NL),NL),
-  pick1(1),
+const inSingleLine = <T extends ParserLike>(parser:T) => pipe(
+  aLine,
   toInnerParser(parser)
 )
 
@@ -388,7 +377,7 @@ export {
   assert,
   chain,
   toInnerParser,
-  asWholeLine,
+  inSingleLine,
   withRawText,
   concat,
   plus,
@@ -402,8 +391,5 @@ export {
   remap,
   label,
   descFn,
-  onReply,
-  onOkReply,
-  onFailReply,
   pick1 as pick
 };

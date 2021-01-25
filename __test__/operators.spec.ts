@@ -1,5 +1,5 @@
 import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser } from "../src/index";
-import {remap, toInnerParser,label,then,skip,plus,many,join} from "../src/operators";
+import {remap, toInnerParser,label,then,skip,plus,many,join,fallback,inSingleLine} from "../src/operators";
 
 describe('operators',()=>{
   test('toInnerparser',()=>{
@@ -17,11 +17,22 @@ describe('operators',()=>{
     expect(parser.tryParse(text)).toBe("line1line");
   });
 
+  test('inSinbleLine',()=>{
+    const text = String.raw`line1\
+    line2\
+    line3
+    line4`;
+    const _ = regexp(/[ \t]*/)
+    
+    const parser = pipe(takeTo("2"),inSingleLine);
+    expect(parser.tryParse(text)).toBe("line1\\");
+  });
+
+
   test('map',()=>{
-    const map2:<V,R>(fn:(v:V)=>R) => (parser:Parser<V>|(()=>Parser<V>)|(V extends string ? V:never))=>Parser<R> = map; 
-    const unit = map2(<T>(v:T)=>[v] as const);
+    const unit = map(<T>(v:T)=>[v] as const);
     const mapTest = pipe(string("aaa"),unit);
-    const mapTest2 = pipe("aaa",map2((n)=>[n]))
+    const mapTest2 = pipe(string("aaa"),map((n)=>[n]))
     expect(mapTest.tryParse("aaa")).toEqual(["aaa"]);
     expect(mapTest2.tryParse("aaa")).toEqual(["aaa"]);
   })
@@ -38,4 +49,19 @@ describe('operators',()=>{
     expect(remapTest3.tryParse("aaabbbb")).toEqual(["bbbb","aaa"]);
   })
 
+  test('prev',()=>{
+    const text = String.raw`line1\
+    line2\
+    line3
+    line4`;
+    const _ = regexp(/[ \t]*/)
+    
+    const basicLine = pipe(SOL,then(pipe(noneOf("\n"),many,join())),skip("\n"));
+    const continueLine = seq(prev("\\\n"), _);
+    expect(pipe(basicLine, then(continueLine)).tryParse(text)).toEqual(["\\\n","    "]);
+  })
+  test('fallback',()=>{
+    const parser = pipe(string("001"),map(Number),fallback("fail"));
+    expect(parser.tryParse("002")).toBe("fail");
+  })
 })
