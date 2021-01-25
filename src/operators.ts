@@ -136,15 +136,15 @@ const sepBy = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
   parser: U
 ) => alt(pipe(parser,sepBy1(sep)), ok<ParserValue<U>[]>([]));
 
-type Chain = {
-  <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U>;
-  <Value,U>(onOk:undefined,onFail:(i:ParseResultDetaill)=>Parser<U>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U>;
-  <Value,U1,U2>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U1>,onFail:(i:ParseResultDetaill)=>Parser<U2>,backToStart?:boolean):(parser2:Parser<Value>) =>Parser<U1|U2>;
+interface Chain {
+  <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U>(onOk:undefined,onFail:(i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U1,U2>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U1>,onFail:(i:ParseResultDetaill)=>Parser<U2>):(parser2:Parser<Value>) =>Parser<U1|U2>;
 }
-const chain:Chain = (
+const chainProto = (
+  samePos:boolean,
   onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
-  x?: boolean|((info: ParseResultDetaill) => Parser<unknown>),
-  backToStart=false
+  onFail?: (info: ParseResultDetaill) => Parser<unknown>
 ) => <T extends Parser<unknown>>(parser: T) => {
   return makeParser((wholeText, start) => {
     const result = parser.parse(wholeText, start);
@@ -156,12 +156,16 @@ const chain:Chain = (
       expect:result.expect,
       parsed:()=>wholeText.substr(start,result.index-start)
     }
-    const back = x && typeof x==="function" ? backToStart : x ? x : backToStart;
-    const onFail = x && typeof x==="function" ? x : undefined;
-    if (isFail(result)) return onFail ? onFail(info).parse(wholeText, back ? result.index: start) : result;
-    return onOk ? onOk(result.value,info).parse(wholeText, back ? result.index: start) : result;
+    if (isFail(result)) return onFail ? onFail(info).parse(wholeText, samePos ? start: result.index ) : result;
+    return onOk ? onOk(result.value,info).parse(wholeText, samePos ?  start : result.index) : result;
   });
 };
+const chain:Chain = (onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
+onFail?: (info: ParseResultDetaill) => Parser<unknown>
+) =>chainProto(false,onOk,onFail);
+const chainInSamaPos:Chain = (onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
+onFail?: (info: ParseResultDetaill) => Parser<unknown>
+) =>chainProto(true,onOk,onFail);
 
 const assert = <T>(func: (value: T) => boolean, desc = "") => 
   chain((value:T) => (func(value) ? ok(value) : fail(desc) as Parser<T>));
@@ -171,10 +175,9 @@ const not = <T extends ParserLike>(notParser: T, desc = "") => <U extends Parser
 ) => {
   const parser = toParser(parserLike);
   const _notParser = toParser(notParser);
-  return pipe(_notParser,chain(
+  return pipe(_notParser,chainInSamaPos(
     (_,{expect})=>fail(`not ${expect}`),
-    ()=>parser,
-    true
+    ()=>parser
   ));
 };
 interface Fallback{
@@ -325,11 +328,10 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
     outerParser: U
   ) => pipe(
     toParser(outerParser),
-    chain((v,{start}) => pipe(
-      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, start)+v, 0)),
+    chainInSamaPos(v => pipe(
+      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, 0)),
       desc((expect,i)=>`${expect} in index:${i} of textToParse`)
       )
-      ,true
     )
 );
 

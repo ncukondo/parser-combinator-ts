@@ -62,7 +62,7 @@ describe('basic methods',()=>{
     `)).toBe("test");
   });
   test('flat',()=>{
-    const parser = seq(regexp(/./),seq(/\d/,/\d/).many()).flat();
+    const parser = seq(regexp(/./),seq(regexp(/\d/),regexp(/\d/)).many()).flat();
     expect(parser.tryParse('123456ab')).toEqual(
       [
           "1",
@@ -71,7 +71,7 @@ describe('basic methods',()=>{
         ]);
   });
   test('flatDeep',()=>{
-    const parser = seq(regexp(/./),seq(/\d/,/\d/).many()).flatDeep();
+    const parser = seq(regexp(/./),seq(regexp(/\d/),regexp(/\d/)).many()).flatDeep();
     expect(parser.tryParse('123456ab')).toEqual(
       [
           "1",

@@ -1,5 +1,5 @@
 import {Parser,makeParser,isFail,isOk,ok,fail,
-  makeOk,Mark,Node} from './parser'
+  makeOk,Mark,Node, regexp} from './parser'
 import  {seqToMono,toParser,seq
   ,ParserLike,alt, ParserValue, pipe, desc} from './combinators';
 import  {index} from './token';
@@ -198,18 +198,18 @@ _.wrap = function<T>(this:Parser<T>,leftLike:ParserLike, rightLike?:ParserLike){
 };
 
 _.trim = function<T>(this:Parser<T>,leftLike?:ParserLike, rightLike?:ParserLike){
-  const left = leftLike ?? /[ \n\r\t]*/m;
+  const left = leftLike ?? regexp(/[ \n\r\t]*/m);
   const right = rightLike ?? left;
   return this.wrap(left,rightLike);
 };
 
 _.trimL = function<T>(this:Parser<T>,leftLike?:ParserLike){
-  const left = leftLike ?? /[ \n\r\t]*/;
+  const left = leftLike ?? regexp(/[ \n\r\t]*/);
   return seqToMono(toParser(left),[this]);
 };
 
 _.trimR = function<T>(this:Parser<T>,rightLike?:ParserLike){
-  const right = rightLike ?? /[ \n\r\t]*/;
+  const right = rightLike ??  regexp(/[ \n\r\t]*/);
   return seqToMono([this],toParser(right));
 };
 
