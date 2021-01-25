@@ -3,18 +3,20 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   ParseResult} from './parser';
   
 type Lazy<T> = ()=>Parser<T>;
-type ParserLike = string | RegExp | Parser<unknown> | Lazy<unknown>;
+type ParserLike = string | (()=>string) | Parser<unknown> | Lazy<unknown>;
 type ParserValue<T>
   = T extends ParserLike
     ? T extends string
       ? T
-      : T extends RegExp
-        ? string  
-        : T extends Lazy<infer L>
-          ? L
-          : T extends Parser<infer P>
-            ? P
-            : never
+      : T extends Parser<infer P>
+        ? P
+        : T extends ()=> infer R
+          ? R extends string
+            ? R
+            : R extends Parser<infer P>
+              ? P
+              : never
+          : never
     : never;
 type ToParser<T> = Parser<ParserValue<T>>;
 export type ParserValues<T extends readonly any[]> 
@@ -103,18 +105,24 @@ const combine:Combine =
       return func(acc);
     },seed);
   }
-  
-const lazy = <T>(func:()=>Parser<T>):Parser<T> =>{
+
+interface LazyEx {
+  <T extends string>(func:()=>T):Parser<T>
+  <T>(func:()=>Lazy<T>):Parser<T>
+}  
+const lazy:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T: never))):Parser<T> =>{
   return makeParser((input,index)=>{
-    return func().parse(input,index)
+    const v = func();
+    const parser = typeof v==="string" ? string(v) : v;
+    return parser.parse(input,index)
   })
 }
 
 const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
   if(isParser(x)) return x as unknown as Parser<ParserValue<T>>;
   if(isString(x)) return string(x) as unknown as Parser<ParserValue<T>>;
+  if(isFunction(x)) return lazy(x as unknown as ()=>any) as Parser<ParserValue<T>>;
   if(isRegExp(x)) return regexp(x) as unknown as Parser<ParserValue<T>>;
-  if(isFunction(x)) return lazy(x as unknown as ()=>Parser<ParserValue<T>>);
   return x as unknown as Parser<ParserValue<T>>;
 }
 const toParsers = <T extends readonly ParserLike[]>(xs:readonly [...T]):Parser<ParserValue<T[number]>>[] => xs.map(x=> toParser(x));
@@ -123,28 +131,31 @@ const desc = (expect:string) => <T>(parser:Parser<T>) => makeParser((input, i,ok
     ({...parser.parse(input, i),expect})
 );
 
-type ExtendParserLike<P> =
-  P extends string
-    ? Parser<P> | Lazy<P>
-    : P extends RegExp
-      ? String | Parser<string>| Lazy<string>
-      : never;
-type ParserValueToParserLike<V> =
-  V extends string
-    ? Parser<V>|Lazy<V>|V|RegExp
-    : Parser<V> | Lazy<V>;
+interface ParseDetailInfo {
+  readonly wholeText:string;
+  readonly start:number;
+  readonly end:number;
+  readonly expect:string;
+  readonly parsed:()=>string;
+}
+
 type MapOperator = {
-  <V,R>(mapFn1:(value:V)=>R):(parser:Parser<V>) => Parser<R>;
-  <PLike extends ParserLike,R>(mapFn2:(value:ParserValue<PLike>)=>R):(parserLike21:PLike|ExtendParserLike<PLike>) => Parser<R>;
-  <Fn extends (v:unknown)=>unknown>(mapFn3:Fn):<F extends Fn,T>(parserLike:T) =>Parser<ReturnType<F>>;
+  <V,R>(mapFn1:(value:V,i:ParseDetailInfo)=>R):(parser:Parser<V>) => Parser<R>;
 }
 //@ts-ignore
-const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>)=>U) => (parserLike:T):Parser<U> =>{
+const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>,info:ParseDetailInfo)=>U) => (parserLike:T):Parser<U> =>{
   const parser = toParser(parserLike);
-  return makeParser((input, i, ok) =>{
-    const result= parser.parse(input,i);
+  return makeParser((wholeText, start, ok) =>{
+    const result= parser.parse(wholeText,start);
     if(isFail(result)) return result;
-    return ok(result.index,mapFn(result.value));
+    const info = {
+      wholeText,
+      start,
+      end:result.index,
+      expect:result.expect,
+      parsed:()=>wholeText.substr(start,result.index-start)
+    }
+    return ok(result.index,mapFn(result.value,info));
   });
 
 }
