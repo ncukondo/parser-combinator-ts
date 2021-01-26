@@ -20,14 +20,14 @@ describe('operators',()=>{
   test('inSingleLine',()=>{
     const text = String.raw`line1\
     line2line3\
-line3
+    line3    
     line4`;
     const _ = regexp(/[ \t]*/)
     
     const parser = pipe(all,inSingleLine);
     expect(all().tryParse(text)).toBe(text);
     expect(parser.tryParse(text)).toBe("line1\\");
-    const stop = pipe("line3", inSingleLine);
+    const stop = pipe("line3", trim(),inSingleLine);
     expect(takeTo(stop).tryParse(text)).toBe("line1\\\n    line2line3\\\n");
   });
 

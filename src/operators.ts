@@ -8,6 +8,7 @@ import {
   makeOk,
   Mark,
   Node,
+  regexp,
 } from "./parser";
 import type { ParseResult,  OkResult,
   FailResult,
@@ -195,8 +196,11 @@ const wrap = <L extends ParserLike, R extends ParserLike>(left: L, right?: R) =>
     seq(left, parser, right ?? left),
     pick1(1)
   );
-
-const trim = wrap;
+const whitespace = ()=>regexp(/\s*/);
+const trim = <T extends ParserLike>(trimParser?: T)  =>{
+  const trimP = trimParser ?? whitespace;
+  return wrap(trimP);
+};
 
 const or = <T extends ParserLike>(altParser: T) => <U extends ParserLike>(parser: U) => alt(parser, altParser);
 
