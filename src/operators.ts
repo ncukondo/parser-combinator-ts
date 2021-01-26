@@ -329,7 +329,7 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
   ) => pipe(
     toParser(outerParser),
     chainInSamaPos(v => pipe(
-      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, 0)),
+      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, i)),
       desc((expect,i)=>`${expect} in index:${i} of textToParse`)
       )
     )

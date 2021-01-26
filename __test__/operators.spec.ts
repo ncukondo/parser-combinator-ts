@@ -1,5 +1,5 @@
 import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser } from "../src/index";
-import {remap, toInnerParser,label,then,skip,plus,many,join,fallback,inSingleLine} from "../src/operators";
+import {remap, toInnerParser,label,then,skip,plus,many,join,fallback,inSingleLine, trim} from "../src/operators";
 
 describe('operators',()=>{
   test('toInnerparser',()=>{
@@ -17,15 +17,18 @@ describe('operators',()=>{
     expect(parser.tryParse(text)).toBe("line1line");
   });
 
-  test('inSinbleLine',()=>{
+  test('inSingleLine',()=>{
     const text = String.raw`line1\
-    line2\
-    line3
+    line2line3\
+line3
     line4`;
     const _ = regexp(/[ \t]*/)
     
-    const parser = pipe(takeTo("2"),inSingleLine);
+    const parser = pipe(all,inSingleLine);
+    expect(all().tryParse(text)).toBe(text);
     expect(parser.tryParse(text)).toBe("line1\\");
+    const stop = pipe("line3", inSingleLine);
+    expect(takeTo(stop).tryParse(text)).toBe("line1\\\n    line2line3\\\n");
   });
 
 
