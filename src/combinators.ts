@@ -51,7 +51,7 @@ T extends []
   ? Key extends string
     ? Value extends ParserLike
       ? Rest extends readonly Labelable[]
-        ? LabelableToObj<[...Rest],Obj&{[K in Key]:ParserValue<Value>}>
+        ? LabelableToObj<[...Rest],{[K in Key|keyof Obj]:K extends Key ? ParserValue<Value> : K extends keyof Obj ? Obj[K] : never}>
         : Obj&{[K in Key]:ParserValue<Value>}
       : Value
     : Key
@@ -59,7 +59,7 @@ T extends []
       ? Rest extends readonly Labelable[]
         ? LabelableToObj<[...Rest],Obj>
         : Obj
-      :Obj
+      :Obj;
 
 const isString = (x:any):x is string => typeof x === "string";
 const isFunction = (x:any):x is Function => typeof x ==="function";
