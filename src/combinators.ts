@@ -1,6 +1,9 @@
+import { resolve } from 'path';
 import  {Parser,regexp,string,makeParser,isFail,isOk,
   isParser,
-  ParseResult} from './parser';
+  ParseResult,
+  OkResult,
+  FailResult} from './parser';
   
 type Lazy<T> = ()=>Parser<T>;
 type ParserLike = string | (()=>string) | Parser<unknown> | Lazy<unknown>;
@@ -43,7 +46,7 @@ type NotUnion<T, Org=T> =T extends any
     : never
   : never;
 
-export type Labelable = (readonly [string,ParserLike])|ParserLike;
+type Labelable = (readonly [string,ParserLike])|ParserLike;
 type LabelableToObj<T extends readonly Labelable[],Obj={}> =
 T extends []
 ? Obj
@@ -52,7 +55,7 @@ T extends []
     ? Value extends ParserLike
       ? Rest extends readonly Labelable[]
         ? LabelableToObj<[...Rest],{[K in Key|keyof Obj]:K extends Key ? ParserValue<Value> : K extends keyof Obj ? Obj[K] : never}>
-        : Obj&{[K in Key]:ParserValue<Value>}
+        : {[K in Key|keyof Obj]:K extends Key ? ParserValue<Value> : K extends keyof Obj ? Obj[K] : never}
       : Value
     : Key
   : T extends [ParserLike,...infer Rest] 
@@ -137,7 +140,7 @@ const desc:Desc = (x:string|DescFn) => <T>(parser:Parser<T>) => makeParser((inpu
   return typeof x==="function" ? {...res,expect:x(res.expect,res.index)} : {...res,expect:x};
 });
 
-interface ParseResultDetaill {
+interface ParseResultDetail {
   readonly wholeText:string;
   readonly ok:boolean;
   readonly start:number;
@@ -146,31 +149,36 @@ interface ParseResultDetaill {
   readonly parsed:()=>string;
 }
 
-type MapOperator = {
-  <V,R>(mapFn1:(value:V,i:ParseResultDetaill)=>R):(parser:Parser<V>) => Parser<R>;
+interface MapResult {
+  <Value,U1>(onOk:(result:OkResult<Value>,i:ParseResultDetail)=>ParseResult<U1>):(parser2:Parser<Value>) =>Parser<U1>;
+  <Value,U1,U2>(onOk:(result:OkResult<Value>,i:ParseResultDetail)=>ParseResult<U1>,onFail:(result:FailResult,i:ParseResultDetail)=>ParseResult<U2>):(parser2:Parser<Value>) =>Parser<U1|U2>;
 }
-//@ts-ignore
-const map:MapOperator =  <T extends ParserLike,U>(mapFn:(value:ParserValue<T>,info:ParseResultDetaill)=>U) => (parserLike:T):Parser<U> =>{
-  const parser = toParser(parserLike);
-  return makeParser((wholeText, start, ok) =>{
+const mapResult:MapResult =  <T,U1,U2>(
+  onOk:(result:OkResult<T>,info:ParseResultDetail)=>ParseResult<U1>,
+  onFail?:(result:FailResult,info:ParseResultDetail)=>ParseResult<U2>) => (parser:Parser<T>):Parser<U1|U2> =>{
+  return makeParser((wholeText, start):ParseResult<U1|U2> =>{
     const result= parser.parse(wholeText,start);
     const info = {
       wholeText,
-      ok:result.success,
+      ok:result.ok,
       start,
       end:result.index,
       expect:result.expect,
       parsed:()=>wholeText.substr(start,result.index-start)
     }
-    if(isFail(result)) return result;
-    return ok(result.index,mapFn(result.value,info));
+    if(isFail(result)) return onFail ? onFail(result,info) : result;
+    return onOk(result,info);
   });
-
 }
-  
-  // -*- Combinators -*-
-  
-  
+
+type MapOperator = {
+  <V,R>(mapFn1:(value:V,i:ParseResultDetail)=>R):(parser:Parser<V>) => Parser<R>;
+}
+const map:MapOperator =  <T,U>(mapFn:(value:T,info:ParseResultDetail)=>U) => 
+  mapResult<T,U>((res,i)=>({...res,value:mapFn(res.value,i)}));
+
+// -*- Combinators -*-
+
 const seq = <T extends readonly [ParserLike,...ParserLike[]]>
     (...parserLikes:T) => {
     return makeParser((input, i,ok) =>{
@@ -185,139 +193,136 @@ const seq = <T extends readonly [ParserLike,...ParserLike[]]>
   }
   
   
-  const seqToMono = <
-      T extends readonly [Markable<unknown>, ...Markable<unknown>[]]>
-    (...markables:T)
-      :MarkableToMono<T> => {
-    const key = [...markables].findIndex(v=>Array.isArray(v));
-    if (key === -1 ) {
-      throw new Error("seqToMono expects one marked parser, found zero or too much");
-    }
-    const [first,...parsers] = [...markables]
-      .map(v=>isArray(v) ? v[0] as ParserLike : v as ParserLike)
-      .map(v=>toParser(v));
-    return pipe(
-      seq(first,...parsers),
-      map(v=>v[key])
-    ) as unknown as MarkableToMono<T>;
+const seqToMono = <
+    T extends readonly [Markable<unknown>, ...Markable<unknown>[]]>
+  (...markables:T)
+    :MarkableToMono<T> => {
+  const key = [...markables].findIndex(v=>Array.isArray(v));
+  if (key === -1 ) {
+    throw new Error("seqToMono expects one marked parser, found zero or too much");
   }
+  const [first,...parsers] = [...markables]
+    .map(v=>isArray(v) ? v[0] as ParserLike : v as ParserLike)
+    .map(v=>toParser(v));
+  return pipe(
+    seq(first,...parsers),
+    map(v=>v[key])
+  ) as unknown as MarkableToMono<T>;
+}
   
   
-  const seqObj = <T extends [Labelable,...Labelable[]]>(...parserLikeOrLabeled:T):Parser<LabelableToObj<T>> =>{
-    const keys = parserLikeOrLabeled
-      .flatMap((v,i)=>isArray(v) ? [[v[0],i]] as const:[]);
-    if (keys.length === 0) {
-      throw new Error("seqObj expects at least one named parser, found zero");
-    }
-    const [first,...parsers] = [...parserLikeOrLabeled]
-      .map(v=>isArray(v) ? v[1] : v)
-      .map(v=>toParser(v as ParserLike));
-    return pipe(
-      seq(first,...parsers),
-      map(v=>{
-        const entries = keys.map(([key,i])=>[key,v[i]])
-        return Object.fromEntries(entries);        
-      })
-    );
+const seqObj = <T extends [Labelable,...Labelable[]]>(...parserLikeOrLabeled:T):Parser<LabelableToObj<T>> =>{
+  const keys = parserLikeOrLabeled
+    .flatMap((v,i)=>isArray(v) ? [[v[0],i]] as const:[]);
+  if (keys.length === 0) {
+    throw new Error("seqObj expects at least one named parser, found zero");
   }
-  
-  const createLanguage = <T>
-    (parsers:ParserContainer<T>):LanguageInfo<T>  =>{
-    const language = {} as LanguageInfo<T>;
-    
-    for (const key in parsers) {
-      if (!{}.hasOwnProperty.call(parsers, key)) continue;
-      const value = parsers[key];
-      if(isFunction(value)){
-        const valuefn = value as Function;
-        if(valuefn.length>=2){
-          const [ ,...rest] = valuefn.arguments;
-          const func = (...args:typeof rest)=> valuefn(language,...args);
-          //  @ts-ignore
-          language[key] = func;
-        }else{
-          const func = ()=> valuefn(language);
-          //  @ts-ignore
-          language[key] = lazy(func);
-          }
-      }else{
-          //  @ts-ignore
-          language[key] = toParser(value as ParserLike<T[typeof key]>);
-      }
-    }
-    return language;
-  }
-  
-  
-  
-  
-  const alt = <
-    T extends readonly [ParserLike,...ParserLike[]]
-  >(...parsersLike:T):Parser<ParserValue<T[number]>> =>{
-    const parsers = toParsers(parsersLike) as Parser<ParserValue<T[number]>>[];
-    return makeParser((input, i,_,fail)=>  {
-      return parsers.reduce((last,parser)=>{
-        if(isOk(last)) return last;
-        const result = parser.parse(input,i);
-        if(isOk(result)) return result;
-        const expected = [last.expect, result.expect];
-        return fail(i,expected.join(" or "));
-      },fail(i,"") as ParseResult<ParserValue<T[number]>>);
-    });
-  }
-  
-  const peek = <T extends ParserLike>(x:T) => {
-    const parser = toParser(x);
-    return makeParser((input,i,ok)=>{
-      const reply = parser.parse(input,i);
-      if(isFail(reply)) return reply;
-      return ok(i,reply.value);
+  const [first,...parsers] = [...parserLikeOrLabeled]
+    .map(v=>isArray(v) ? v[1] : v)
+    .map(v=>toParser(v as ParserLike));
+  return pipe(
+    seq(first,...parsers),
+    map(v=>{
+      const entries = keys.map(([key,i])=>[key,v[i]])
+      return Object.fromEntries(entries);        
     })
-  }
+  );
+}
   
-  const takeWhile = (predicate:ParserLike) =>{
-    const parser = toParser(predicate);
-    return makeParser((input, i,ok) =>{
-      var j = i;
-      while (j < input.length && isOk(parser.parse(input,j))) {
-        j++;
-      }
-      return ok(j, input.slice(i, j));
-    });
-  }
+const createLanguage = <T>
+  (parsers:ParserContainer<T>):LanguageInfo<T>  =>{
+  const language = {} as LanguageInfo<T>;
   
-  const takeTo = (...stopParsers:[ParserLike,...ParserLike[]]) =>{
-    const parsers = toParsers(stopParsers);
-    const isStop = (input:string,i:number) =>
-      parsers.some(parser=>isOk(parser.parse(input,i))); 
-    return makeParser((input, i,ok) =>{
-      for (var j = i; j < input.length; j++) {
-        if (isStop(input, j)) break;
-      }
-      return ok(j, input.slice(i, j));
-    });
+  for (const key in parsers) {
+    if (!{}.hasOwnProperty.call(parsers, key)) continue;
+    const value = parsers[key];
+    if(isFunction(value)){
+      const valuefn = value as Function;
+      if(valuefn.length>=2){
+        const [ ,...rest] = valuefn.arguments;
+        const func = (...args:typeof rest)=> valuefn(language,...args);
+        //  @ts-ignore
+        language[key] = func;
+      }else{
+        const func = ()=> valuefn(language);
+        //  @ts-ignore
+        language[key] = lazy(func);
+        }
+    }else{
+        //  @ts-ignore
+        language[key] = toParser(value as ParserLike<T[typeof key]>);
+    }
   }
+  return language;
+}
+  
+const alt = <
+  T extends readonly [ParserLike,...ParserLike[]]
+>(...parsersLike:T):Parser<ParserValue<T[number]>> =>{
+  const parsers = toParsers(parsersLike) as Parser<ParserValue<T[number]>>[];
+  return makeParser((input, i,_,fail)=>  {
+    return parsers.reduce((last,parser)=>{
+      if(isOk(last)) return last;
+      const result = parser.parse(input,i);
+      if(isOk(result)) return result;
+      const expected = [last.expect, result.expect];
+      return fail(i,expected.join(" or "));
+    },fail(i,"") as ParseResult<ParserValue<T[number]>>);
+  });
+}
+  
+const peek = <T extends ParserLike>(x:T) => {
+  const parser = toParser(x);
+  return makeParser((input,i,ok)=>{
+    const reply = parser.parse(input,i);
+    if(isFail(reply)) return reply;
+    return ok(i,reply.value);
+  })
+}
 
-  interface Prev {
-    (text:string):Parser<string>;
-    <T>(parser:Parser<T>,backTo:number):Parser<T>;
-  }
-  const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
-    return makeParser<string|T>((input, i,ok,fail) =>{
-      const back = typeof x==="string" ? x.length : backTo ?? 0;
-      const pos = i-back;
-      if(back===0 || pos<=0) return fail(i,`enough position to see prev ${back}`);
-      const parser = typeof x==="string" ? string(x) : x;
-      return parser.parse(input,pos);
-    });
-  }
+const takeWhile = (predicate:ParserLike) =>{
+  const parser = toParser(predicate);
+  return makeParser((input, i,ok) =>{
+    var j = i;
+    while (j < input.length && isOk(parser.parse(input,j))) {
+      j++;
+    }
+    return ok(j, input.slice(i, j));
+  });
+}
+  
+const takeTo = (...stopParsers:[ParserLike,...ParserLike[]]) =>{
+  const parsers = toParsers(stopParsers);
+  const isStop = (input:string,i:number) =>
+    parsers.some(parser=>isOk(parser.parse(input,i))); 
+  return makeParser((input, i,ok) =>{
+    for (var j = i; j < input.length; j++) {
+      if (isStop(input, j)) break;
+    }
+    return ok(j, input.slice(i, j));
+  });
+}
+
+interface Prev {
+  (text:string):Parser<string>;
+  <T>(parser:Parser<T>,backTo:number):Parser<T>;
+}
+const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
+  return makeParser<string|T>((input, i,ok,fail) =>{
+    const back = typeof x==="string" ? x.length : backTo ?? 0;
+    const pos = i-back;
+    if(back===0 || pos<=0) return fail(i,`enough position to see prev ${back}`);
+    const parser = typeof x==="string" ? string(x) : x;
+    return parser.parse(input,pos);
+  });
+}
   
   
 export {toParser,toParsers, lazy, desc, 
-    map,seq,seqToMono, seqObj, createLanguage,alt,peek,
+    map,mapResult,seq,seqToMono, seqObj, createLanguage,alt,peek,
     takeWhile,takeTo,pipe,prev,combine}
 export type {
   Lazy,ParserValue,ToParser,ParserLike,
-  ParseResultDetaill
+  ParseResultDetail as ParseResultDetaill, Labelable
 }
   

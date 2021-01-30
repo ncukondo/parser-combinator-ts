@@ -1,12 +1,12 @@
 
 export interface OkResult<T> {
-  success: true;
+  ok: true;
   index: number
   value: T
   expect: string
 }
 export interface FailResult {
-  success: false;
+  ok: false;
   index: number;
   expect: string;
 }
@@ -39,9 +39,8 @@ export type Tree<T,U extends string,I extends string> = {
   value:Node<T,I>|Tree<T,U,I>[]|(Tree<T,U,I>|Node<T,I>)[];
 }
   
-const isOk = <T>(x:ParseResult<T>):x is OkResult<T> =>  x.success;
-const isFail = <T>(x:ParseResult<T>):x is FailResult => !x.success;
-
+const isOk = <T>(x:ParseResult<T>):x is OkResult<T> =>  x.ok;
+const isFail = <T>(x:ParseResult<T>):x is FailResult => !x.ok;
 
 const offsetToPosition = (input:string, offset:number) =>{
   const lines = input.slice(0, offset).split("\n");
@@ -55,14 +54,14 @@ const offsetToPosition = (input:string, offset:number) =>{
 }
 
 const makeOk = <T>(index:number, value:T, expect=""):OkResult<T> => ({
-  success: true,
+  ok: true,
   index,
   value,
   expect
 });
 
 const makeFail = (index:number, expect:string):FailResult=> ({
-  success: false,
+  ok: false,
   index,
   expect
 });

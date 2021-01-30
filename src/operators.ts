@@ -5,7 +5,6 @@ import {
   isOk,
   fail,
   Parser,
-  makeOk,
   Mark,
   Node,
   regexp,
@@ -21,6 +20,7 @@ import {
   seq,
   pipe,
   map,
+  mapResult,
   takeTo,
   Lazy,
   desc,
@@ -30,12 +30,25 @@ import type {
 } from "./combinators";
 import { index, aLine } from "./token";
 
-const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
+interface Chain {
+  <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
+  <Value,U1,U2>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U1>,onFail:(i:ParseResultDetaill)=>Parser<U2>):(parser2:Parser<Value>) =>Parser<U1|U2>;
+}
+const chain:Chain = <V,U1,U2>(onOk: (value: V,info:ParseResultDetaill) => Parser<U1>,
+onFail?: (info: ParseResultDetaill) => Parser<U2>
+) => mapResult<V,U1,U2>(
+  (res,i)=>onOk(res.value,i).parse(i.wholeText,i.end),
+  (res,i)=>onFail ? onFail(i).parse(i.wholeText,i.end) : res
+  )
 
-const descFn = (expectFn:(prev:string)=>string) => <T>(parser:Parser<T>) => makeParser((input, i,ok,fail) =>{
-  const reply = parser.parse(input, i);
-  return {...reply,expect:expectFn(reply.expect)}
-});
+const mapToParser:Chain = <V,U1,U2>(onOk: (value:V,info:ParseResultDetaill) => Parser<U1>,
+onFail?: (info: ParseResultDetaill) => Parser<U2>
+) => mapResult<V,U1,U2>(
+  (res,i)=>onOk(res.value,i).parse(i.wholeText,i.start),
+  (res,i)=>onFail ? onFail(i).parse(i.wholeText,i.start) : res
+)
+
+const join = <T extends string[]>(sep="") => map((arr:T) => arr.join(sep));
 
 
 const many = <T extends ParserLike>(parserLike:T):Parser<ParserValue<T>[]> => {
@@ -137,36 +150,6 @@ const sepBy = <T extends ParserLike>(sep: T) => <U extends ParserLike>(
   parser: U
 ) => alt(pipe(parser,sepBy1(sep)), ok<ParserValue<U>[]>([]));
 
-interface Chain {
-  <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
-  <Value,U>(onOk:undefined,onFail:(i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
-  <Value,U1,U2>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U1>,onFail:(i:ParseResultDetaill)=>Parser<U2>):(parser2:Parser<Value>) =>Parser<U1|U2>;
-}
-const chainProto = (
-  samePos:boolean,
-  onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
-  onFail?: (info: ParseResultDetaill) => Parser<unknown>
-) => <T extends Parser<unknown>>(parser: T) => {
-  return makeParser((wholeText, start) => {
-    const result = parser.parse(wholeText, start);
-    const info = {
-      wholeText,
-      ok:result.success,
-      start,
-      end:result.index,
-      expect:result.expect,
-      parsed:()=>wholeText.substr(start,result.index-start)
-    }
-    if (isFail(result)) return onFail ? onFail(info).parse(wholeText, samePos ? start: result.index ) : result;
-    return onOk ? onOk(result.value,info).parse(wholeText, samePos ?  start : result.index) : result;
-  });
-};
-const chain:Chain = (onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
-onFail?: (info: ParseResultDetaill) => Parser<unknown>
-) =>chainProto(false,onOk,onFail);
-const chainInSamaPos:Chain = (onOk?: (value: unknown,info:ParseResultDetaill) => Parser<unknown>,
-onFail?: (info: ParseResultDetaill) => Parser<unknown>
-) =>chainProto(true,onOk,onFail);
 
 const assert = <T>(func: (value: T) => boolean, desc = "") => 
   chain((value:T) => (func(value) ? ok(value) : fail(desc) as Parser<T>));
@@ -176,7 +159,7 @@ const not = <T extends ParserLike>(notParser: T, desc = "") => <U extends Parser
 ) => {
   const parser = toParser(parserLike);
   const _notParser = toParser(notParser);
-  return pipe(_notParser,chainInSamaPos(
+  return pipe(_notParser,mapToParser(
     (_,{expect})=>fail(`not ${expect}`),
     ()=>parser
   ));
@@ -247,12 +230,12 @@ const premap = (fn: (input: string) => string) => <U extends ParserLike>(
   parserLike: U
 ) => {
   const parser = toParser(parserLike);
-  return makeParser((input, i) => {
+  return makeParser((input, i, ok) => {
     var result = parser.parse(fn(input.slice(i)));
     if (isFail(result)) {
       return result;
     }
-    return makeOk(i + input.length, result.value);
+    return ok(i + input.length, result.value);
   });
 };
 
@@ -332,7 +315,7 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
     outerParser: U
   ) => pipe(
     toParser(outerParser),
-    chainInSamaPos(v => pipe(
+    mapToParser(v => pipe(
       makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, i)),
       desc((expect,i)=>`${expect} in index:${i} of textToParse`)
       )
@@ -382,6 +365,7 @@ export {
   fallback,
   assert,
   chain,
+  mapToParser,
   toInnerParser,
   inSingleLine,
   withRawText,
@@ -396,6 +380,5 @@ export {
   flatDeep,
   remap,
   label,
-  descFn,
   pick1 as pick
 };
