@@ -29,6 +29,7 @@ import type {
   ParseResultDetaill
 } from "./combinators";
 import { index, aLine } from "./token";
+import { __asyncValues } from "tslib";
 
 interface Chain {
   <Value,U>(onOk:(value:Value,i:ParseResultDetaill)=>Parser<U>):(parser2:Parser<Value>) =>Parser<U>;
@@ -97,18 +98,14 @@ const and = concat;
 const pick1 = <T extends object|any[],I extends keyof T>(key:I) => map((arr:T) => arr[key]);
 
 type Remap = {
-  <K1 extends string, V1 extends string|number, I extends Readonly<{[key in K1]:V1}>>(mapTemplate:I): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
-  Parser<{[K in keyof I]: I[K] extends keyof T
-            ? T[I[K]]
-            : I[K]}>
+  <K1 extends string, V1 extends number, I extends Readonly<{[key in K1]:V1}>>(mapTemplate:I): <T extends ReadonlyArray<unknown>>(parser:Parser<T>) =>
+  Parser<{[K in keyof I]: I[K] extends keyof T ? T[I[K]] : I[K]}>;
+  <K1 extends string, V1 extends string, I extends Readonly<{[key in K1]:V1}>>(mapTemplate:I): <T extends Readonly<Object>>(parser:Parser<T>) =>
+  Parser<{[K in keyof I]: I[K] extends keyof T ? T[I[K]] : I[K]}>;
   <I extends Readonly<Object>>(mapTemplate:I): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
-  Parser<{[K in keyof I]: I[K] extends keyof T
-            ? T[I[K]]
-            : I[K]}>
+  Parser<{[K in keyof I]: I[K] extends keyof T ? T[I[K]] : I[K]}>;
   <I extends ReadonlyArray<unknown>>(mapTemplate:readonly [...I]): <T extends ReadonlyArray<unknown>|Readonly<Object>>(parser:Parser<T>) =>
-  Parser<{[K in keyof I]: I[K] extends keyof T
-            ? T[I[K]]
-            : I[K]}>
+  Parser<{[K in keyof I]: I[K] extends keyof T ? T[I[K]] : I[K]}>;
 }
 const remap:Remap = (<O2 extends Object,T extends (readonly unknown[]|Readonly<O2>),O1 extends Object,I extends (readonly unknown[]|Readonly<O1>)>(mapTemplate:I) => map((arr:T) => 
   Array.isArray(mapTemplate)
@@ -117,6 +114,32 @@ const remap:Remap = (<O2 extends Object,T extends (readonly unknown[]|Readonly<O
         Object.entries(mapTemplate as Object).map(([key,value])=>value in arr ? [key,arr[value as keyof T]] as const : [key,value] as const)
     )
 )) as unknown as Remap;
+
+type MakeObj<Template extends ReadonlyArray<string>,Values extends ReadonlyArray<unknown>& {"length":Template["length"]},Obj={}> =
+  Template extends []
+  ? Obj
+  : Template extends [infer Key,...infer RestKeys] 
+    ? Values extends [infer Value,...infer RestValues]
+      ? Key extends string
+        ? RestKeys extends ReadonlyArray<string>
+          ? Key extends ""
+            ? MakeObj<RestKeys,RestValues,Obj>
+            : MakeObj<RestKeys,RestValues,{[K in Key|keyof Obj]:K extends Key ? Value : K extends keyof Obj ? Obj[K] : never}>
+          : {[K in Key|keyof Obj]:K extends Key ? Value : K extends keyof Obj ? Obj[K] : never}
+        : never
+      : never
+    : never;
+type ToObj = {
+  <T extends ReadonlyArray<""|string>>(...objTemplate:T): <P extends ReadonlyArray<unknown>& {"length":T["length"]}>(parser:Parser<P>) =>
+    Parser<MakeObj<T,P>>
+}
+const toObj:ToObj = <T extends ReadonlyArray<""|string>>(...objTemplate:T) => <P extends ReadonlyArray<unknown>& {"length":T["length"]}>(parser:Parser<P>) => {
+  return pipe(
+    parser,
+    map(value=>Object.fromEntries(objTemplate.flatMap((key,i)=> key!=="" ? [[key,value[i]]] : [])) as MakeObj<T,P>)
+  )
+}
+
 
 type DeepFlattened<T> = T extends ReadonlyArray<infer U> ?  DeepFlattened<U> : T;
 type Tail<T extends readonly unknown[]> = T extends readonly [any, ...infer U] ? U : [];
@@ -380,5 +403,6 @@ export {
   flatDeep,
   remap,
   label,
+  toObj,
   pick1 as pick
 };
