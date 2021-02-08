@@ -11,9 +11,5 @@ RUN apk update && apk add git openssh
 
 COPY --from=builder /go/src/gh-cli/bin/gh /usr/local/bin/
 
-# copy gitcofig
-#COPY .devcontainer/.githubconfig/ /root/
-#RUN chmod 600 ~/.ssh/id_rsa_github
-
 
 ENTRYPOINT ["/bin/sh"]

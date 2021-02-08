@@ -3,6 +3,11 @@
   "context": "..",
   "dockerFile": "dockerfile",
   "workspaceFolder": "/usr/src/${localWorkspaceFolderBasename}",
+  // Set *default* container specific settings.json values on container create.
+	"settings": { 
+		"terminal.integrated.shell.linux": "/bin/ash"
+	},
+
   "mounts": [
     "source=${localWorkspaceFolder}/,target=/usr/src/${localWorkspaceFolderBasename},type=bind,consistency=cached",
     "source=nodemodules,target=/usr/src/${localWorkspaceFolderBasename}/node_modules",
@@ -12,8 +17,6 @@
     "coenraads.bracket-pair-colorizer-2",
     "oderwat.indent-rainbow",
     "ms-azuretools.vscode-docker",
-    "svelte.svelte-vscode",
-    "fivethree.vscode-svelte-snippets",
     "dbaeumer.vscode-eslint"
   ]
 }
