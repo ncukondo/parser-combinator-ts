@@ -11,5 +11,10 @@ RUN apk update && apk add git openssh
 
 COPY --from=builder /go/src/gh-cli/bin/gh /usr/local/bin/
 
+RUN set -ex; \
+    apk add --no-cache su-exec && \
+    chmod u+s /sbin/su-exec &&\
+    alias sudo='/sbin/su-exec'
+
 
 ENTRYPOINT ["/bin/sh"]
