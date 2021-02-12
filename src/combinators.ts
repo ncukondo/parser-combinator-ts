@@ -303,6 +303,10 @@ const takeTo = (...stopParsers:[ParserLike,...ParserLike[]]) =>{
   });
 }
 
+const between = (start: ParserLike, end: ParserLike) =>
+  pipe(seq(start, takeTo(end), end), map(([,main])=>main));
+
+
 interface Prev {
   (text:string):Parser<string>;
   <T>(parser:Parser<T>,backTo:number):Parser<T>;
@@ -320,7 +324,7 @@ const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
   
 export {toParser,toParsers, lazy, desc, 
     map,mapResult,seq,seqToMono, seqObj, createLanguage,alt,peek,
-    takeWhile,takeTo,pipe,prev,combine}
+    takeWhile,takeTo,pipe,prev,combine,between}
 export type {
   Lazy,ParserValue,ToParser,ParserLike,
   ParseResultDetail as ParseResultDetaill, Labelable
