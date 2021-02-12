@@ -6,7 +6,7 @@ import  {Parser,regexp,string,makeParser,isFail,isOk,
   FailResult} from './parser';
   
 type Lazy<T> = ()=>Parser<T>;
-type ParserLike = string | (()=>string) | Parser<unknown> | Lazy<unknown>;
+type ParserLike = string | (()=>string) | RegExp | (()=>RegExp) |Parser<unknown> | Lazy<unknown>;
 type ParserValue<T>
   = T extends ParserLike
     ? T extends string
@@ -111,14 +111,19 @@ const combine:Combine =
 
 interface LazyEx {
   <T extends string>(func:()=>T):Parser<T>
-  <T>(func:()=>Lazy<T>):Parser<T>
+  <T extends RegExp>(func:()=>RegExp):Parser<string>
+  <T>(func:()=>Parser<T>):Parser<T>
 }  
-const lazy:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T: never))):Parser<T> =>{
+const lazy:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T  : never)|RegExp)):Parser<T>|Parser<string> =>{
   return makeParser((input,index)=>{
     const v = func();
-    const parser = typeof v==="string" ? string(v) : v;
+    const parser = typeof v==="string" 
+      ? string(v) 
+      : isRegExp(v)
+        ? regexp(v) as unknown as Parser<T>
+        : v as Parser<T>;
     return parser.parse(input,index)
-  })
+  }) as Parser<T>|Parser<string>;
 }
 
 const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
@@ -129,6 +134,21 @@ const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
   return x as unknown as Parser<ParserValue<T>>;
 }
 const toParsers = <T extends readonly ParserLike[]>(xs:readonly [...T]):Parser<ParserValue<T[number]>>[] => xs.map(x=> toParser(x));
+
+interface Of {
+  <T extends string>(v1:T):Parser<T>;
+  <T extends RegExp>(v2:T):Parser<string>;
+  <T extends string>(func1:()=>T):Parser<T>;
+  <T extends RegExp>(func2:()=>RegExp):Parser<string>;
+  <T>(fn3:()=>Parser<T>):Parser<T>;
+  <T extends readonly [ParserLike,...ParserLike[]]>(...parserLikes:T):Parser<ParserValues<T>>;
+  <T extends [Labelable,...Labelable[]]>(...parserLikeOrLabeled:T):Parser<LabelableToObj<T>>;
+}
+const of:Of =(...x:[...Labelable[]]) =>{
+  if(x.length<=1) return toParser(x[0] as ParserLike) as unknown as ReturnType<Of>;
+  if(x.find(isArray)) return seqObj(...x as [Labelable,...Labelable[]]) as unknown as ReturnType<Of>;
+  return seq(...x as [ParserLike,...ParserLike[]]) as any;
+}
 
 type DescFn = (prev:string,i:number)=>string;
 interface Desc {
@@ -324,7 +344,7 @@ const prev:Prev = <T>(x:string|Parser<T>,backTo?:number) =>{
   
 export {toParser,toParsers, lazy, desc, 
     map,mapResult,seq,seqToMono, seqObj, createLanguage,alt,peek,
-    takeWhile,takeTo,pipe,prev,combine,between}
+    takeWhile,takeTo,pipe,prev,combine,between,alt as anyOf,of}
 export type {
   Lazy,ParserValue,ToParser,ParserLike,
   ParseResultDetail as ParseResultDetaill, Labelable
