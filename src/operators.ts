@@ -347,22 +347,13 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
 
 const inSingleLine = <T extends ParserLike>(parser:T) => pipe(
   aLine,
-  toInnerParser(pipe(parser,skip(EOL)))
+  toInnerParser(parser)
 )
 
-interface WithRawText {
-  <T>():(parser:Parser<T>)=>Parser<{value:T,rawText:string}>;
-  <T,U>(fn:(text:string,value:T)=>U):(parser:Parser<T>)=>Parser<U>;
-}
-const withRawText:WithRawText = <T,U>(fn?:(text:string,value:T)=>U) => (parser:Parser<T>) =>{
-  return makeParser<U|{value:T,rawText:string}>((input, i,ok) => {
-    const reply = parser.parse(input, i);
-    if(isFail(reply)) return reply;
-    const rawText = input.slice(i,reply.index);
-    const value = reply.value;
-    return ok(reply.index,fn?.(rawText,value) ?? ({value,rawText}));
-  });
-}
+const asSingleLine = <T extends ParserLike>(parser:T) => pipe(
+  aLine,
+  toInnerParser(pipe(parser,skip(EOL)))
+)
 
 export {
 map,
@@ -391,7 +382,7 @@ export {
   mapToParser,
   toInnerParser,
   inSingleLine,
-  withRawText,
+  asSingleLine,
   concat,
   plus,
   and,

@@ -1,5 +1,5 @@
-import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser } from "../src/index";
-import {remap, toInnerParser,label,then,skip,plus,many,join,fallback,inSingleLine, trim,toObj} from "../src/operators";
+import { digit, takeTo, string, regexp,seqObj, all, alt,seq, EOF, optWhitespace, SOL, noneOf,prev, pipe, map, Parser, of } from "../src/index";
+import {remap, toInnerParser,label,then,skip,plus,many,join,fallback,inSingleLine, trim,toObj, asSingleLine} from "../src/operators";
 
 describe('operators',()=>{
   test('toInnerparser',()=>{
@@ -28,6 +28,21 @@ describe('operators',()=>{
     expect(all().tryParse(text)).toBe(text);
     expect(parser.tryParse(text)).toBe("line1\\");
     const stop = pipe("line3", trim(),inSingleLine);
+    expect(takeTo(stop).tryParse(text)).toBe("line1\\\n    line2line3\\\n");
+  });
+
+  test('asSingleLine: ok for all line and ng for part of line',()=>{
+    const text = String.raw`line1\
+    line2line3\
+    line3    
+    line4`;
+    const _ = regexp(/[ \t]*/)
+    
+    const parser1 = pipe(of(`line1\\`),asSingleLine);
+    expect(parser1.tryParse(text)).toBe(`line1\\`);
+    const parser2 = pipe(of("line1"),asSingleLine);
+    expect(parser2.parse(text).ok).toBe(false);
+    const stop = pipe("line3", trim(),asSingleLine);
     expect(takeTo(stop).tryParse(text)).toBe("line1\\\n    line2line3\\\n");
   });
 
