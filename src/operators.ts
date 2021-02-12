@@ -331,7 +331,7 @@ const tap = <T extends ParserLike>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) =
   map(v=>{tapFn(v); return v})
 );
 
-const of = <U>(value:U)=> map(v=>value);
+const mapTo = <U>(value:U)=> map(v=>value);
   
 
 const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|Parser<string>|Lazy<string>>(
@@ -399,7 +399,7 @@ export {
   pick1,
   flat,
   tap,
-  of,
+  mapTo,
   flatDeep,
   remap,
   label,

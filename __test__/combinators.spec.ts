@@ -18,6 +18,10 @@ describe('combinators',()=>{
     const ofTest1 = of("year:",/\d+/);
     expect(ofTest1.tryParse("year:2012")).toEqual(["year:","2012"]);
   })
+  test('of: of from Lazy',()=>{
+    const ofTest1 = of(()=>"year:" as const);
+    expect(ofTest1.tryParse("year:2012")).toEqual("year:");
+  })
   test('of: of from seqObj args',()=>{
     const ofTest1 = of("year:",["year",regexp(/\d+/)] as const,"desu");
     expect(ofTest1.tryParse("year:2012desu")).toEqual({year:"2012"});
