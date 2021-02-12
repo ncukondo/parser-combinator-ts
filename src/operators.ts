@@ -28,7 +28,7 @@ import {
 import type {
   ParseResultDetaill
 } from "./combinators";
-import { index, aLine } from "./token";
+import { index, aLine,EOL } from "./token";
 import { __asyncValues } from "tslib";
 
 interface Chain {
@@ -347,7 +347,7 @@ const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends strin
 
 const inSingleLine = <T extends ParserLike>(parser:T) => pipe(
   aLine,
-  toInnerParser(parser)
+  toInnerParser(pipe(parser,skip(EOL)))
 )
 
 interface WithRawText {
