@@ -199,21 +199,20 @@ type ToObj = {
     parser: Parser<P>
   ) => Parser<MakeObj<T, P>>;
 };
-const toObj: ToObj = <T extends ReadonlyArray<"" | string>>(
-  ...objTemplate: T
-) => <P extends ReadonlyArray<unknown> & { length: T["length"] }>(
+const toObj: ToObj = <T extends ReadonlyArray<"" | string>>(...ts: T) => <
+  P extends ReadonlyArray<unknown> & { length: T["length"] }
+>(
   parser: Parser<P>
-) => {
-  return pipe(
+) =>
+  pipe(
     parser,
     map(
       (value) =>
         Object.fromEntries(
-          objTemplate.flatMap((key, i) => (key !== "" ? [[key, value[i]]] : []))
+          ts.flatMap((key, i) => (key !== "" ? [[key, value[i]]] : []))
         ) as MakeObj<T, P>
     )
   );
-};
 
 type DeepFlattened<T> = T extends ReadonlyArray<infer U> ? DeepFlattened<U> : T;
 type Tail<T extends readonly unknown[]> = T extends readonly [any, ...infer U]
