@@ -21,7 +21,6 @@ const rangeChar = (begin:string, end:string) =>
 
 
 const oneOf = (str:string) =>{
-  const expected = str.split("").map(v=>`'${v}'`);
   return pipe(
     testChar((ch)=> str.includes(ch)),
     desc("one of '" + str + "'")

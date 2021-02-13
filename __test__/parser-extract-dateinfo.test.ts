@@ -1,22 +1,21 @@
-import { digit, takeTo, of,  all, anyOf } from "../src/index";
-import { times,map,join,label,fallback } from "../src/operators";
-
 import test = jest.It;
 import expect = jest.Expect;
-import  describe = jest.Describe;
+import describe = jest.Describe;
 
+import { digit, takeTo, of, all, anyOf } from "../src/index";
+import { times, map, join, label, fallback } from "../src/operators";
 
 const extractDateInfo = (filename: string) => {
   type DateInfo = { year: number; day: number; month: number };
   const toDate = map((i: DateInfo) => new Date(i.year, i.month - 1, i.day));
-  const d = (c: number) => digit().to(times(c),join(),map(Number));
+  const d = (c: number) => digit().to(times(c), join(), map(Number));
   const [dddd, dd] = [d(4), d(2)];
   const [year, month, day] = [
-    label("year",dddd),
-    label("month",dd),
-    label("day",dd)
+    label("year", dddd),
+    label("month", dd),
+    label("day", dd),
   ];
-  const name = label("name",takeTo("("));
+  const name = label("name", takeTo("("));
 
   const _ = of("_");
   const to = of("-");
@@ -24,8 +23,8 @@ const extractDateInfo = (filename: string) => {
   const d2 = of(year, _, month, _, dd, to, day);
   const d3 = of(year, _, dd, _, dd, to, month, _, day);
   const d4 = of(dddd, _, dd, _, dd, to, year, _, month, _, day);
-  const date = anyOf(d4, d3, d2, d1).to(toDate,label("date"));
-  const ext = label("ext",all);
+  const date = anyOf(d4, d3, d2, d1).to(toDate, label("date"));
+  const ext = label("ext", all);
 
   const parser = of(name, "(", date, ")", ext).to(fallback(null));
   return parser.tryParse(filename);
@@ -36,7 +35,7 @@ describe("extractDateInfo", () => {
     expect(extractDateInfo("file(2020_10_12).txt")).toEqual({
       date: new Date(2020, 10 - 1, 12),
       ext: ".txt",
-      name: "file"
+      name: "file",
     });
   });
   test.each`

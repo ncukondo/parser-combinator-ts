@@ -1,5 +1,3 @@
-export * from './parser';
-export * from './token';
-export * from './combinators';
-
-
+export * from "./parser";
+export * from "./token";
+export * from "./combinators";
