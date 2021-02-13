@@ -38,6 +38,14 @@ export type Tree<T,U extends string,I extends string> = {
   name:U,
   value:Node<T,I>|Tree<T,U,I>[]|(Tree<T,U,I>|Node<T,I>)[];
 }
+interface To<T> {
+  <A>(a: (t:T)=>A): A
+  <A, B>(a: (t:T)=>A, ab: (a: A) => B): B
+  <A, B, C>(a: (t:T)=>A, ab: (a: A) => B, bc: (b: B) => C): C
+  <A, B, C, D>(a: (t:T)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D
+  <A, B, C, D, E>(a: (t:T)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: D) => E): E
+  <A, B, C, D, E, F>(a: (t:T)=>A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D, de: (d: D) => E, ef: (e: E) => F): F
+}
   
 const isOk = <T>(x:ParseResult<T>):x is OkResult<T> =>  x.ok;
 const isFail = <T>(x:ParseResult<T>):x is FailResult => !x.ok;
@@ -92,7 +100,9 @@ class Parser<T>{
     const msg = _formatter(input,reply.index,reply.expect);
     const err = new Error(msg);
     throw err;
-  };  
+  }; 
+  
+  to:To<this> = <U extends Function[]>(...fns:U) => fns.reduce((acc,fn)=>fn(acc),this);
 }
 
 const isParser = <T>(x:unknown):x is Parser<T> =>x instanceof Parser;

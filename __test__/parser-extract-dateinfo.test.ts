@@ -1,33 +1,33 @@
-import { digit, takeTo, string, seqObj, all, alt } from "../src/index";
-import { times,map,join,label,pipe,fallback } from "../src/operators";
+import { digit, takeTo, of,  all, anyOf } from "../src/index";
+import { times,map,join,label,fallback } from "../src/operators";
 
-declare const test: jest.It;
-declare const expect: jest.Expect;
-declare const describe: jest.Describe;
+import test = jest.It;
+import expect = jest.Expect;
+import  describe = jest.Describe;
 
 
 const extractDateInfo = (filename: string) => {
-  const toDate = map((i: { year: number; date: number; month: number }) =>
-    new Date(i.year, i.month - 1, i.date));
-  const d = (c: number) => pipe(digit,times(c),join(),map(Number));
+  type DateInfo = { year: number; day: number; month: number };
+  const toDate = map((i: DateInfo) => new Date(i.year, i.month - 1, i.day));
+  const d = (c: number) => digit().to(times(c),join(),map(Number));
   const [dddd, dd] = [d(4), d(2)];
-  const [year, month, date] = [
+  const [year, month, day] = [
     label("year",dddd),
     label("month",dd),
-    label("date",dd)
+    label("day",dd)
   ];
   const name = label("name",takeTo("("));
 
-  const _ = string("_");
-  const to = string("-");
-  const d1 = seqObj(year, _, month, _, date);
-  const d2 = seqObj(year, _, month, _, dd, to, date);
-  const d3 = seqObj(year, _, dd, _, dd, to, month, _, date);
-  const d4 = seqObj(dddd, _, dd, _, dd, to, year, _, month, _, date);
-  const dateInfo = pipe(alt(d4, d3, d2, d1),toDate,label("date"));
+  const _ = of("_");
+  const to = of("-");
+  const d1 = of(year, _, month, _, day);
+  const d2 = of(year, _, month, _, dd, to, day);
+  const d3 = of(year, _, dd, _, dd, to, month, _, day);
+  const d4 = of(dddd, _, dd, _, dd, to, year, _, month, _, day);
+  const date = anyOf(d4, d3, d2, d1).to(toDate,label("date"));
   const ext = label("ext",all);
 
-  const parser = pipe(seqObj(name, "(", dateInfo, ")", ext),fallback(null));
+  const parser = of(name, "(", date, ")", ext).to(fallback(null));
   return parser.tryParse(filename);
 };
 

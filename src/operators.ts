@@ -22,7 +22,6 @@ import {
   map,
   mapResult,
   takeTo,
-  Lazy,
   desc,
 } from "./combinators";
 import type {
@@ -334,7 +333,7 @@ const tap = <T extends ParserLike>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) =
 const mapTo = <U>(value:U)=> map(v=>value);
   
 
-const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|Parser<string>|Lazy<string>>(
+const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|Parser<string>|(()=>Parser<string>)>(
     outerParser: U
   ) => pipe(
     toParser(outerParser),

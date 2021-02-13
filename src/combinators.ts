@@ -1,24 +1,26 @@
-import { resolve } from 'path';
 import  {Parser,regexp,string,makeParser,isFail,isOk,
   isParser,
   ParseResult,
   OkResult,
   FailResult} from './parser';
   
-type Lazy<T> = ()=>Parser<T>;
-type ParserLike = string | (()=>string) | RegExp | (()=>RegExp) |Parser<unknown> | Lazy<unknown>;
+type ParserLike = string | (()=>string) | RegExp | (()=>RegExp) |Parser<unknown> | (()=>Parser<unknown>);
 type ParserValue<T>
   = T extends ParserLike
     ? T extends string
       ? T
-      : T extends Parser<infer P>
-        ? P
-        : T extends ()=> infer R
-          ? R extends string
-            ? R
-            : R extends Parser<infer P>
-              ? P
-              : never
+      : T extends RegExp
+        ? string
+        : T extends Parser<infer P>
+          ? P
+          : T extends ()=> infer R
+            ? R extends string
+              ? R
+              : R extends RegExp
+                ? string
+                : R extends Parser<infer P>
+                  ? P
+                  : never
           : never
     : never;
 type ToParser<T> = Parser<ParserValue<T>>;
@@ -68,6 +70,7 @@ const isString = (x:any):x is string => typeof x === "string";
 const isFunction = (x:any):x is Function => typeof x ==="function";
 const isRegExp = (x:any):x is RegExp => x instanceof RegExp;
 const isArray = <T>(x:any):x is Array<T> => Array.isArray(x);
+const range = (start:number,end:number) => [...Array(end-start)].map((_,i)=>i+start);
 
 
 type PipeFn<T1,T2> = (value:T1)=>T2;
@@ -114,7 +117,7 @@ interface LazyEx {
   <T extends RegExp>(func:()=>RegExp):Parser<string>
   <T>(func:()=>Parser<T>):Parser<T>
 }  
-const lazy:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T  : never)|RegExp)):Parser<T>|Parser<string> =>{
+const lazyEx:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T  : never)|RegExp)):Parser<T>|Parser<string> =>{
   return makeParser((input,index)=>{
     const v = func();
     const parser = typeof v==="string" 
@@ -125,11 +128,13 @@ const lazy:LazyEx = <T>(func:()=>(Parser<T>|(T extends string ? T  : never)|RegE
     return parser.parse(input,index)
   }) as Parser<T>|Parser<string>;
 }
+type Lazy = <T>(func:()=>Parser<T>) => Parser<T>;
+const lazy:Lazy = lazyEx;
 
 const toParser = <T extends ParserLike>(x:T):Parser<ParserValue<T>> =>{
   if(isParser(x)) return x as unknown as Parser<ParserValue<T>>;
   if(isString(x)) return string(x) as unknown as Parser<ParserValue<T>>;
-  if(isFunction(x)) return lazy(x as unknown as ()=>any) as Parser<ParserValue<T>>;
+  if(isFunction(x)) return lazyEx(x as unknown as ()=>any) as Parser<ParserValue<T>>;
   if(isRegExp(x)) return regexp(x) as unknown as Parser<ParserValue<T>>;
   return x as unknown as Parser<ParserValue<T>>;
 }
@@ -200,52 +205,45 @@ const map:MapOperator =  <T,U>(mapFn:(value:T,info:ParseResultDetail)=>U) =>
 // -*- Combinators -*-
 
 const seq = <T extends readonly [ParserLike,...ParserLike[]]>
-    (...parserLikes:T) => {
-    return makeParser((input, i,ok) =>{
-      return toParsers(parserLikes).reduce((last,parser)=>{
+    (...parserLikes:T) => 
+  makeParser((input, i,ok) =>
+    toParsers(parserLikes).reduce((last,parser)=>{
         if(isFail(last)) return last;
         const result = parser.parse(input,last.index);
         if(isFail(result)) return result;
         const value = [...last.value,result.value];
         return ok(result.index,value);
-      }, ok(i,[]) as ParseResult<unknown[]>);
-    }) as unknown as Parser<ParserValues<T>>;
-  }
+      }, ok(i,[]) as ParseResult<unknown[]>)
+  ) as unknown as Parser<ParserValues<T>>;
+  
   
   
 const seqToMono = <
     T extends readonly [Markable<unknown>, ...Markable<unknown>[]]>
   (...markables:T)
     :MarkableToMono<T> => {
-  const key = [...markables].findIndex(v=>Array.isArray(v));
-  if (key === -1 ) {
-    throw new Error("seqToMono expects one marked parser, found zero or too much");
-  }
-  const [first,...parsers] = [...markables]
-    .map(v=>isArray(v) ? v[0] as ParserLike : v as ParserLike)
-    .map(v=>toParser(v));
+  const key = [...markables].findIndex(isArray);
+  const [...parsers] = [...markables]
+    .map(v=>(isArray(v) ? v[0] : v) as ParserLike)
+    .map(toParser) as [Parser<unknown>,...Parser<unknown>[]];
   return pipe(
-    seq(first,...parsers),
+    seq(...parsers),
     map(v=>v[key])
   ) as unknown as MarkableToMono<T>;
 }
   
   
-const seqObj = <T extends [Labelable,...Labelable[]]>(...parserLikeOrLabeled:T):Parser<LabelableToObj<T>> =>{
-  const keys = parserLikeOrLabeled
-    .flatMap((v,i)=>isArray(v) ? [[v[0],i]] as const:[]);
+const seqObj = <T extends [Labelable,...Labelable[]]>(...p:T):Parser<LabelableToObj<T>> =>{
+  const keys = p.flatMap((v,i)=>isArray(v) ? [[v[0],i]] as const:[]);
   if (keys.length === 0) {
     throw new Error("seqObj expects at least one named parser, found zero");
   }
-  const [first,...parsers] = [...parserLikeOrLabeled]
-    .map(v=>isArray(v) ? v[1] : v)
-    .map(v=>toParser(v as ParserLike));
+  const [...parsers] = [...p]
+    .map(v=>(isArray(v) ? v[1] : v) as ParserLike)
+    .map(toParser) as [Parser<unknown>,...Parser<unknown>[]];;
   return pipe(
-    seq(first,...parsers),
-    map(v=>{
-      const entries = keys.map(([key,i])=>[key,v[i]])
-      return Object.fromEntries(entries);        
-    })
+    seq(...parsers),
+    map(v=>Object.fromEntries(keys.map(([key,i])=>[key,v[i]])))
   );
 }
   
@@ -278,18 +276,17 @@ const createLanguage = <T>
   
 const alt = <
   T extends readonly [ParserLike,...ParserLike[]]
->(...parsersLike:T):Parser<ParserValue<T[number]>> =>{
-  const parsers = toParsers(parsersLike) as Parser<ParserValue<T[number]>>[];
-  return makeParser((input, i,_,fail)=>  {
-    return parsers.reduce((last,parser)=>{
+>(...p:T):Parser<ParserValue<T[number]>> =>
+  makeParser((input, i,_,fail)=>  
+    (toParsers(p) as Parser<ParserValue<T[number]>>[]).reduce((last,parser)=>{
       if(isOk(last)) return last;
       const result = parser.parse(input,i);
       if(isOk(result)) return result;
       const expected = [last.expect, result.expect];
       return fail(i,expected.join(" or "));
-    },fail(i,"") as ParseResult<ParserValue<T[number]>>);
-  });
-}
+    },fail(i,"") as ParseResult<ParserValue<T[number]>>)
+  );
+
   
 const peek = <T extends ParserLike>(x:T) => {
   const parser = toParser(x);
@@ -310,16 +307,15 @@ const takeWhile = (predicate:ParserLike) =>{
     return ok(j, input.slice(i, j));
   });
 }
+
   
-const takeTo = (...stopParsers:[ParserLike,...ParserLike[]]) =>{
-  const parsers = toParsers(stopParsers);
-  const isStop = (input:string,i:number) =>
-    parsers.some(parser=>isOk(parser.parse(input,i))); 
+const takeTo = (...stop:[ParserLike,...ParserLike[]]) =>{
+  const parsers = toParsers(stop);
   return makeParser((input, i,ok) =>{
-    for (var j = i; j < input.length; j++) {
-      if (isStop(input, j)) break;
-    }
-    return ok(j, input.slice(i, j));
+    const isStop = (i:number) =>
+      parsers.some(parser=>isOk(parser.parse(input,i))); 
+    const end = range(i,input.length).find(isStop) ?? input.length;
+    return ok(end, input.slice(i, end));
   });
 }
 
@@ -346,7 +342,7 @@ export {toParser,toParsers, lazy, desc,
     map,mapResult,seq,seqToMono, seqObj, createLanguage,alt,peek,
     takeWhile,takeTo,pipe,prev,combine,between,alt as anyOf,of}
 export type {
-  Lazy,ParserValue,ToParser,ParserLike,
+  ParserValue,ToParser,ParserLike,
   ParseResultDetail as ParseResultDetaill, Labelable
 }
   
