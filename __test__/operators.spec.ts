@@ -45,6 +45,15 @@ describe('operators',()=>{
     const stop = pipe("line3", trim(),asSingleLine);
     expect(takeTo(stop).tryParse(text)).toBe("line1\\\n    line2line3\\\n");
   });
+  test('asSingleLine: matchWhole Line',()=>{
+    const text = String.raw`line1
+    line2`;
+    const _ = regexp(/.+/)
+    
+    const line1 = of(/.+/).to(asSingleLine);
+    const parser1 = of(line1,"    line2");
+    expect(parser1.tryParse(text)).toStrictEqual(["line1","    line2"]);
+  });
 
 
   test('map',()=>{

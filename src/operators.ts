@@ -331,16 +331,15 @@ const tap = <T extends ParserLike>(tapFn:(v:ParserValue<T>)=>any)=> (parser:T) =
 );
 
 const mapTo = <U>(value:U)=> map(v=>value);
-  
 
 const toInnerParser = <T extends ParserLike>(innerParser: T) => <U extends string|Parser<string>|(()=>Parser<string>)>(
     outerParser: U
   ) => pipe(
     toParser(outerParser),
-    mapToParser(v => pipe(
-      makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, i)),
-      desc((expect,i)=>`${expect} in index:${i} of textToParse`)
-      )
+    mapToParser((v,{end}) => pipe(
+        makeParser((input,i)=>toParser(innerParser).parse(input.slice(0, i)+v, i)).to(mapResult((r)=>({...r,index:end}))),
+        desc((expect,i)=>`${expect} in index:${i} of textToParse`)
+      ),
     )
 );
 
